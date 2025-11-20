@@ -83,3 +83,9 @@ func (m *Manager) BroadcastPacket(data []byte) {
 		return true
 	})
 }
+
+// HasConnection checks if there is an active connection to the given address.
+func (m *Manager) HasConnection(addr string) bool {
+	_, ok := m.conns.Load(addr)
+	return ok
+}

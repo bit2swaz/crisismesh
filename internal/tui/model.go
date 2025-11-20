@@ -47,19 +47,9 @@ func initialModel(db *gorm.DB, nodeID string) model {
 	db.Find(&peers)
 	sortPeers(peers)
 
-	var sb strings.Builder
-	sb.WriteString("Welcome to CrisisMesh!\nChat history will appear here.\n")
-
-	// Load existing messages
-	msgs, _ := store.GetMessages(db, 50)
-	// Reverse messages to show oldest first
-	for i := len(msgs) - 1; i >= 0; i-- {
-		msg := msgs[i]
-		sender := "Peer"
-		if msg.SenderID == nodeID {
-			sender = "You"
-		}
-		sb.WriteString(fmt.Sprintf("%s: %s\n", sender, msg.Content))
+	history, _ := buildChatHistory(db, nodeID)
+	if history == "" {
+		history = "Welcome to CrisisMesh!\nChat history will appear here.\n"
 	}
 
 	return model{
@@ -67,7 +57,7 @@ func initialModel(db *gorm.DB, nodeID string) model {
 		nodeID:      nodeID,
 		peers:       peers,
 		textInput:   ti,
-		chatHistory: sb.String(),
+		chatHistory: history,
 	}
 }
 
@@ -93,6 +83,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.db.Find(&peers)
 		sortPeers(peers)
 		m.peers = peers
+
+		// Refresh chat history
+		newHistory, err := buildChatHistory(m.db, m.nodeID)
+		if err == nil && newHistory != m.chatHistory {
+			m.chatHistory = newHistory
+			m.viewport.SetContent(m.chatHistory)
+			// Auto-scroll to bottom on new messages
+			// In a real app, we'd check if user is scrolled up
+			m.viewport.GotoBottom()
+		}
+
 		return m, tick()
 
 	case tea.KeyMsg:
@@ -192,6 +193,27 @@ func sortPeers(peers []store.Peer) {
 		// Then by Nickname
 		return peers[i].Nick < peers[j].Nick
 	})
+}
+
+func buildChatHistory(db *gorm.DB, nodeID string) (string, error) {
+	var sb strings.Builder
+	sb.WriteString("Welcome to CrisisMesh!\nChat history will appear here.\n")
+
+	// Load existing messages
+	msgs, err := store.GetMessages(db, 50)
+	if err != nil {
+		return "", err
+	}
+	// Reverse messages to show oldest first
+	for i := len(msgs) - 1; i >= 0; i-- {
+		msg := msgs[i]
+		sender := "Peer"
+		if msg.SenderID == nodeID {
+			sender = "You"
+		}
+		sb.WriteString(fmt.Sprintf("%s: %s\n", sender, msg.Content))
+	}
+	return sb.String(), nil
 }
 
 // StartTUI initializes and runs the TUI program

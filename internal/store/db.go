@@ -4,10 +4,17 @@ import (
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"gorm.io/gorm/logger"
 )
 
 func Init(path string) (*gorm.DB, error) {
-	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{})
+	// Enable WAL mode and busy timeout for better concurrency
+	dsn := path + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
+
+	// Disable GORM logging to stdout to prevent TUI corruption
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 	if err != nil {
 		return nil, err
 	}

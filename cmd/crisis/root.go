@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"time"
 
 	"github.com/bit2swaz/crisismesh/internal/config"
 	"github.com/bit2swaz/crisismesh/internal/core"
-	"github.com/bit2swaz/crisismesh/internal/discovery"
+	"github.com/bit2swaz/crisismesh/internal/engine"
 	"github.com/bit2swaz/crisismesh/internal/store"
+	"github.com/bit2swaz/crisismesh/internal/transport"
 	"github.com/bit2swaz/crisismesh/internal/tui"
 	"github.com/spf13/cobra"
 )
@@ -49,46 +49,15 @@ var startCmd = &cobra.Command{
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		// Start Discovery Components
-		peerChan := make(chan discovery.PeerInfo, 10)
+		// Initialize Transport
+		tm := transport.NewManager()
 
-		// 1. Heartbeat
-		go func() {
-			if err := discovery.StartHeartbeat(ctx, cfg.Port, nodeID, cfg.Nick); err != nil {
-				slog.Error("Heartbeat failed", "error", err)
-			}
-		}()
-
-		// 2. Listener
-		go func() {
-			if err := discovery.StartListener(ctx, cfg.Port, nodeID, peerChan); err != nil {
-				slog.Error("Listener failed", "error", err)
-			}
-		}()
-
-		// 3. Reaper
-		go discovery.StartReaper(ctx, db)
-
-		// 4. Peer Processor
-		go func() {
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case info := <-peerChan:
-					peer := store.Peer{
-						ID:       info.ID,
-						Nick:     info.Nick,
-						Addr:     info.Addr,
-						LastSeen: time.Now(),
-						IsActive: true,
-					}
-					if err := store.UpsertPeer(db, peer); err != nil {
-						slog.Error("Failed to upsert peer", "error", err)
-					}
-				}
-			}
-		}()
+		// Initialize Gossip Engine
+		eng := engine.NewGossipEngine(db, tm, nodeID, cfg.Nick, cfg.Port)
+		if err := eng.Start(ctx); err != nil {
+			slog.Error("Failed to start gossip engine", "error", err)
+			os.Exit(1)
+		}
 
 		// Start TUI
 		if err := tui.StartTUI(db, nodeID); err != nil {
