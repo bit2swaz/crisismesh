@@ -2,7 +2,7 @@
 
 **Offline, Self-Forming Emergency Communication Network**
 
-![Architecture](untitled-2025-11-20-2204.png)
+![Architecture](Untitled-2025-11-20-2204.png)
 
 CrisisMesh is a decentralized, offline-first messaging system designed for disaster and low-connectivity scenarios. Devices on the same local network (Wi-Fi/hotspot/ethernet) form a self-organizing mesh. Messages are delivered hop-by-hop using a store-and-forward (Delay Tolerant Networking, DTN) approach, enabling eventual delivery even when the sender and recipient are never directly connected at the same time.
 
