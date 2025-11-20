@@ -1,4 +1,53 @@
-time=2025-11-20T17:51:11.936Z level=INFO msg="Starting CrisisMesh" port=9000 nick=Test1 room=lobby
-time=2025-11-20T17:52:01.452Z level=INFO msg="Starting CrisisMesh" port=9000 nick=Test1 room=lobby
-time=2025-11-20T17:53:46.080Z level=INFO msg="Starting CrisisMesh" port=9000 nick=Test1 room=lobby
-time=2025-11-20T17:54:00.737Z level=INFO msg="Starting CrisisMesh" port=9000 nick=Test1 room=lobby
+time=2025-11-20T18:13:48.762Z level=INFO msg="Starting CrisisMesh" port=9001 nick=Alice room=lobby
+time=2025-11-20T18:13:48.766Z level=INFO msg="Heartbeat started" targets=12 nodeID=d9406f52-0f65-4414-bf3d-69a7f92b7a88
+time=2025-11-20T18:13:52.661Z level=INFO msg="Starting CrisisMesh" port=9002 nick=Bob room=lobby
+time=2025-11-20T18:13:52.665Z level=INFO msg="Heartbeat started" targets=12 nodeID=d9406f52-0f65-4414-bf3d-69a7f92b7a88
+time=2025-11-20T18:15:45.844Z level=INFO msg="Starting CrisisMesh" port=9001 nick=Alice room=lobby
+time=2025-11-20T18:15:45.867Z level=INFO msg="Heartbeat started" targets=12 nodeID=c8310f78-6716-46d0-a9ce-d2d56f0f4495
+time=2025-11-20T18:15:49.811Z level=INFO msg="Starting CrisisMesh" port=9002 nick=Bob room=lobby
+time=2025-11-20T18:15:49.835Z level=INFO msg="Heartbeat started" targets=12 nodeID=da6b968a-330f-4584-9a14-c4db83b2902c
+time=2025-11-20T18:15:49.868Z level=INFO msg="Received heartbeat" from=Alice addr=172.21.243.206:9001
+time=2025-11-20T18:15:50.837Z level=INFO msg="Received heartbeat" from=Bob addr=172.21.243.206:9002
+time=2025-11-20T18:15:50.838Z level=INFO msg="Received heartbeat" from=Bob addr=127.0.0.1:9002
+time=2025-11-20T18:15:50.868Z level=INFO msg="Received heartbeat" from=Alice addr=172.21.243.206:9001
+time=2025-11-20T18:15:50.868Z level=INFO msg="Received heartbeat" from=Alice addr=127.0.0.1:9001
+time=2025-11-20T18:15:51.836Z level=INFO msg="Received heartbeat" from=Bob addr=172.21.243.206:9002
+time=2025-11-20T18:15:51.836Z level=INFO msg="Received heartbeat" from=Bob addr=127.0.0.1:9002
+time=2025-11-20T18:15:51.868Z level=INFO msg="Received heartbeat" from=Alice addr=172.21.243.206:9001
+time=2025-11-20T18:15:51.868Z level=INFO msg="Received heartbeat" from=Alice addr=127.0.0.1:9001
+time=2025-11-20T18:15:52.836Z level=INFO msg="Received heartbeat" from=Bob addr=172.21.243.206:9002
+time=2025-11-20T18:15:52.837Z level=INFO msg="Received heartbeat" from=Bob addr=127.0.0.1:9002
+time=2025-11-20T18:15:52.869Z level=INFO msg="Received heartbeat" from=Alice addr=172.21.243.206:9001
+time=2025-11-20T18:15:52.869Z level=INFO msg="Received heartbeat" from=Alice addr=127.0.0.1:9001
+time=2025-11-20T18:15:53.836Z level=INFO msg="Received heartbeat" from=Bob addr=172.21.243.206:9002
+time=2025-11-20T18:15:53.836Z level=INFO msg="Received heartbeat" from=Bob addr=127.0.0.1:9002
+time=2025-11-20T18:15:53.868Z level=INFO msg="Received heartbeat" from=Alice addr=172.21.243.206:9001
+time=2025-11-20T18:15:53.869Z level=INFO msg="Received heartbeat" from=Alice addr=127.0.0.1:9001
+time=2025-11-20T18:15:54.836Z level=INFO msg="Received heartbeat" from=Bob addr=172.21.243.206:9002
+time=2025-11-20T18:15:54.837Z level=INFO msg="Received heartbeat" from=Bob addr=127.0.0.1:9002
+time=2025-11-20T18:15:54.868Z level=INFO msg="Received heartbeat" from=Alice addr=172.21.243.206:9001
+time=2025-11-20T18:15:54.868Z level=INFO msg="Received heartbeat" from=Alice addr=127.0.0.1:9001
+time=2025-11-20T18:15:55.836Z level=INFO msg="Received heartbeat" from=Bob addr=172.21.243.206:9002
+time=2025-11-20T18:15:55.836Z level=INFO msg="Received heartbeat" from=Bob addr=127.0.0.1:9002
+time=2025-11-20T18:15:55.868Z level=INFO msg="Received heartbeat" from=Alice addr=172.21.243.206:9001
+time=2025-11-20T18:15:55.869Z level=INFO msg="Received heartbeat" from=Alice addr=127.0.0.1:9001
+time=2025-11-20T18:15:56.836Z level=INFO msg="Received heartbeat" from=Bob addr=172.21.243.206:9002
+time=2025-11-20T18:15:56.836Z level=INFO msg="Received heartbeat" from=Bob addr=127.0.0.1:9002
+time=2025-11-20T18:15:56.868Z level=INFO msg="Received heartbeat" from=Alice addr=172.21.243.206:9001
+time=2025-11-20T18:15:56.868Z level=INFO msg="Received heartbeat" from=Alice addr=127.0.0.1:9001
+time=2025-11-20T18:15:57.836Z level=INFO msg="Received heartbeat" from=Bob addr=172.21.243.206:9002
+time=2025-11-20T18:15:57.836Z level=INFO msg="Received heartbeat" from=Bob addr=127.0.0.1:9002
+time=2025-11-20T18:15:57.868Z level=INFO msg="Received heartbeat" from=Alice addr=172.21.243.206:9001
+time=2025-11-20T18:15:57.868Z level=INFO msg="Received heartbeat" from=Alice addr=127.0.0.1:9001
+time=2025-11-20T18:15:58.837Z level=INFO msg="Received heartbeat" from=Bob addr=172.21.243.206:9002
+time=2025-11-20T18:15:58.837Z level=INFO msg="Received heartbeat" from=Bob addr=127.0.0.1:9002
+time=2025-11-20T18:15:58.868Z level=INFO msg="Received heartbeat" from=Alice addr=172.21.243.206:9001
+time=2025-11-20T18:15:58.868Z level=INFO msg="Received heartbeat" from=Alice addr=127.0.0.1:9001
+time=2025-11-20T18:15:59.836Z level=INFO msg="Received heartbeat" from=Bob addr=172.21.243.206:9002
+time=2025-11-20T18:15:59.837Z level=INFO msg="Received heartbeat" from=Bob addr=127.0.0.1:9002
+time=2025-11-20T18:15:59.868Z level=INFO msg="Received heartbeat" from=Alice addr=172.21.243.206:9001
+time=2025-11-20T18:15:59.868Z level=INFO msg="Received heartbeat" from=Alice addr=127.0.0.1:9001
+time=2025-11-20T18:16:00.836Z level=INFO msg="Received heartbeat" from=Bob addr=172.21.243.206:9002
+time=2025-11-20T18:16:00.836Z level=INFO msg="Received heartbeat" from=Bob addr=127.0.0.1:9002
+time=2025-11-20T18:16:00.868Z level=INFO msg="Received heartbeat" from=Alice addr=172.21.243.206:9001
+time=2025-11-20T18:16:00.868Z level=INFO msg="Received heartbeat" from=Alice addr=127.0.0.1:9001

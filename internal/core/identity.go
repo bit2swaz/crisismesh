@@ -14,13 +14,11 @@ type Identity struct {
 	NodeID string `json:"node_id"`
 }
 
-const identityFile = "identity.json"
-
-// GenerateNodeID retrieves the existing Node ID from identity.json or generates a new one.
-func GenerateNodeID() (string, error) {
+// GenerateNodeID retrieves the existing Node ID from the given file or generates a new one.
+func GenerateNodeID(filename string) (string, error) {
 	// Try to read existing identity
-	if _, err := os.Stat(identityFile); err == nil {
-		data, err := os.ReadFile(identityFile)
+	if _, err := os.Stat(filename); err == nil {
+		data, err := os.ReadFile(filename)
 		if err != nil {
 			return "", fmt.Errorf("failed to read identity file: %w", err)
 		}
@@ -43,7 +41,7 @@ func GenerateNodeID() (string, error) {
 		return "", fmt.Errorf("failed to marshal identity: %w", err)
 	}
 
-	if err := os.WriteFile(identityFile, data, 0644); err != nil {
+	if err := os.WriteFile(filename, data, 0644); err != nil {
 		return "", fmt.Errorf("failed to write identity file: %w", err)
 	}
 

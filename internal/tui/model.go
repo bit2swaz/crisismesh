@@ -15,6 +15,8 @@ import (
 	"gorm.io/gorm"
 )
 
+type tickMsg time.Time
+
 var (
 	activePeerStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Bold(true)
 	inactivePeerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("240")) // Faded gray
@@ -40,12 +42,9 @@ func initialModel(db *gorm.DB, nodeID string) model {
 	ti.CharLimit = 156
 	ti.Width = 20
 
-	// Mock data
-	peers := []store.Peer{
-		{ID: "1", Nick: "Alice", IsActive: true, LastSeen: time.Now()},
-		{ID: "2", Nick: "Bob", IsActive: false, LastSeen: time.Now().Add(-1 * time.Hour)},
-	}
-
+	// Initial peer load
+	var peers []store.Peer
+	db.Find(&peers)
 	sortPeers(peers)
 
 	var sb strings.Builder
@@ -73,7 +72,13 @@ func initialModel(db *gorm.DB, nodeID string) model {
 }
 
 func (m model) Init() tea.Cmd {
-	return textinput.Blink
+	return tea.Batch(textinput.Blink, tick())
+}
+
+func tick() tea.Cmd {
+	return tea.Tick(1*time.Second, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -83,6 +88,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	)
 
 	switch msg := msg.(type) {
+	case tickMsg:
+		var peers []store.Peer
+		m.db.Find(&peers)
+		sortPeers(peers)
+		m.peers = peers
+		return m, tick()
+
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyCtrlC, tea.KeyEsc:

@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/bit2swaz/crisismesh/internal/config"
 	"github.com/bit2swaz/crisismesh/internal/core"
+	"github.com/bit2swaz/crisismesh/internal/discovery"
 	"github.com/bit2swaz/crisismesh/internal/store"
 	"github.com/bit2swaz/crisismesh/internal/tui"
 	"github.com/spf13/cobra"
@@ -26,18 +29,66 @@ var startCmd = &cobra.Command{
 		slog.Info("Starting CrisisMesh", "port", cfg.Port, "nick", cfg.Nick, "room", cfg.Room)
 
 		// Initialize DB
-		db, err := store.Init("crisis.db")
+		// Use port in DB name to allow multiple local instances
+		dbPath := fmt.Sprintf("crisis_%d.db", cfg.Port)
+		db, err := store.Init(dbPath)
 		if err != nil {
 			slog.Error("Failed to init DB", "error", err)
 			os.Exit(1)
 		}
 
 		// Get Node ID
-		nodeID, err := core.GenerateNodeID()
+		// Use port in identity file to allow multiple local instances
+		identityPath := fmt.Sprintf("identity_%d.json", cfg.Port)
+		nodeID, err := core.GenerateNodeID(identityPath)
 		if err != nil {
 			slog.Error("Failed to generate node ID", "error", err)
 			os.Exit(1)
 		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		// Start Discovery Components
+		peerChan := make(chan discovery.PeerInfo, 10)
+
+		// 1. Heartbeat
+		go func() {
+			if err := discovery.StartHeartbeat(ctx, cfg.Port, nodeID, cfg.Nick); err != nil {
+				slog.Error("Heartbeat failed", "error", err)
+			}
+		}()
+
+		// 2. Listener
+		go func() {
+			if err := discovery.StartListener(ctx, cfg.Port, nodeID, peerChan); err != nil {
+				slog.Error("Listener failed", "error", err)
+			}
+		}()
+
+		// 3. Reaper
+		go discovery.StartReaper(ctx, db)
+
+		// 4. Peer Processor
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case info := <-peerChan:
+					peer := store.Peer{
+						ID:       info.ID,
+						Nick:     info.Nick,
+						Addr:     info.Addr,
+						LastSeen: time.Now(),
+						IsActive: true,
+					}
+					if err := store.UpsertPeer(db, peer); err != nil {
+						slog.Error("Failed to upsert peer", "error", err)
+					}
+				}
+			}
+		}()
 
 		// Start TUI
 		if err := tui.StartTUI(db, nodeID); err != nil {
