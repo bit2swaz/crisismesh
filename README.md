@@ -12,8 +12,8 @@ CrisisMesh is a decentralized, offline-first messaging system designed for disas
 *   **Store-and-Forward**: Messages are stored locally and forwarded when a path to the destination becomes available.
 *   **Offline-First**: Designed to work without Internet access.
 *   **Peer Discovery**: Automatic discovery via UDP broadcast (ports 9000-9005).
-*   **Terminal UI (TUI)**: Interactive "hacker terminal" interface for sending messages and viewing network status.
-*   **"I AM SAFE" Broadcast**: High-priority broadcast to notify all nearby peers of safety status.
+*   **Terminal UI (TUI)**: Interactive "Cyberpunk/Military" style interface with multiple views (Comms, Network, Guide).
+*   **"I AM SAFE" Broadcast**: High-priority broadcast to notify all nearby peers of safety status, triggering visual alerts.
 *   **Persistence**: SQLite-backed storage ensures messages survive restarts.
 
 ## Architecture
@@ -89,13 +89,23 @@ To simulate a mesh network on a single machine, you can run multiple agents on d
 
 ## Usage (TUI)
 
-Once the agent is running, you will see the TUI:
+Once the agent is running, you will see the TUI with a Green-on-Black "Field Terminal" aesthetic.
 
-*   **Type a message**: Enter text in the input box and press Enter to broadcast to all peers.
+### Interface Layout
+*   **HUD (Top)**: Displays Node ID, Live Clock, and Uptime.
+*   **Tabs**:
+    *   **COMMs**: Main chat interface and history.
+    *   **NETWORK**: Real-time table of connected peers and their status.
+    *   **GUIDE**: Built-in help and documentation.
+*   **Status Bar (Bottom)**: Shows connection status (ONLINE/ISOLATED) and system stats.
+
+### Controls
+*   **Navigation**: Use `Tab` and `Shift+Tab` to cycle between tabs.
+*   **Messaging**: Type in the input box and press `Enter` to broadcast.
 *   **Commands**:
     *   `/connect <ip:port>`: Manually connect to a peer (useful if UDP broadcast is blocked).
-    *   `/safe`: Broadcast a high-priority "I AM SAFE" status.
-*   **View**: The main area shows the chat log. The sidebar shows active peers.
+    *   `/safe`: Broadcast a high-priority "I AM SAFE" status. This triggers a red screen flash on all receiving nodes.
+*   **Exit**: Press `Ctrl+C` or `Esc` to quit.
 
 ## Future Roadmap
 
