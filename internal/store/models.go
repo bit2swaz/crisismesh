@@ -1,9 +1,7 @@
 package store
-
 import (
 	"time"
 )
-
 type Peer struct {
 	ID       string `gorm:"primaryKey"`
 	Nick     string
@@ -11,7 +9,6 @@ type Peer struct {
 	LastSeen time.Time
 	IsActive bool
 }
-
 type Message struct {
 	ID          string `gorm:"primaryKey"`
 	SenderID    string

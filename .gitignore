@@ -9,6 +9,7 @@
 
 # Logs
 *.log
+test_logs/
 
 # Identity files
 identity*.json
