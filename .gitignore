@@ -1,0 +1,21 @@
+# Binaries
+/crisis
+
+# Databases
+*.db
+*.db-journal
+*.db-wal
+
+# Logs
+*.log
+
+# Identity files
+identity*.json
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Editor specific
+.vscode/
+.idea/
