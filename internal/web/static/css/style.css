@@ -1,0 +1,139 @@
+:root {
+    --color-bg: #050505;
+    --color-text: #00ff41;
+    --color-accent: #00ff41;
+    --color-border: #333;
+    --color-input-bg: #111;
+    --font-mono: 'Courier New', Courier, monospace;
+}
+
+body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-mono);
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Utility Classes (Tailwind-ish) */
+.h-screen { height: 100vh; }
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.flex-1 { flex: 1; }
+.overflow-hidden { overflow: hidden; }
+.overflow-y-auto { overflow-y: auto; }
+.p-4 { padding: 1rem; }
+.p-2 { padding: 0.5rem; }
+.mb-4 { margin-bottom: 1rem; }
+.border-b { border-bottom: 1px solid var(--color-border); }
+.border-t { border-top: 1px solid var(--color-border); }
+.border-green-500 { border-color: var(--color-accent); }
+.bg-black { background-color: #000; }
+.text-green-500 { color: var(--color-accent); }
+.font-bold { font-weight: bold; }
+.w-full { width: 100%; }
+.bg-gray-900 { background-color: var(--color-input-bg); }
+.text-white { color: #fff; }
+.focus\:outline-none:focus { outline: none; }
+.focus\:border-green-500:focus { border-color: var(--color-accent); }
+
+/* Custom Cyberpunk Styles */
+.crt::before {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0; left: 0; bottom: 0; right: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+    z-index: 2;
+    background-size: 100% 2px, 3px 100%;
+    pointer-events: none;
+}
+
+.scanline {
+    width: 100%;
+    height: 100px;
+    z-index: 10;
+    background: linear-gradient(0deg, rgba(0,0,0,0) 0%, rgba(0, 255, 65, 0.04) 50%, rgba(0,0,0,0) 100%);
+    opacity: 0.1;
+    position: absolute;
+    bottom: 100%;
+    animation: scanline 10s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes scanline {
+    0% { bottom: 100%; }
+    100% { bottom: -100%; }
+}
+
+input {
+    background-color: var(--color-input-bg);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    padding: 0.5rem;
+}
+
+input:focus {
+    outline: none;
+    box-shadow: 0 0 5px var(--color-accent);
+    border-color: var(--color-accent);
+}
+
+button {
+    background-color: var(--color-input-bg);
+    color: var(--color-text);
+    border: 1px solid var(--color-accent);
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+button:hover {
+    background-color: var(--color-accent);
+    color: var(--color-bg);
+}
+
+/* Message Styles */
+.message {
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    border-left: 2px solid var(--color-border);
+}
+
+.message.system {
+    border-color: #ff0000;
+    color: #ffaaaa;
+}
+
+.message.me {
+    border-color: var(--color-accent);
+    background-color: rgba(0, 255, 65, 0.05);
+}
+
+#network {
+    width: 100%;
+    height: 100%;
+    background-color: #000000;
+    border: 1px solid #003300;
+}
+
+/* Mobile tweaks */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+    .pb-safe {
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+}
+
+/* Hide scrollbar but keep functionality for cleaner look on mobile */
+main::-webkit-scrollbar {
+    width: 4px;
+}
+main::-webkit-scrollbar-track {
+    background: #000;
+}
+main::-webkit-scrollbar-thumb {
+    background: #003300;
+}

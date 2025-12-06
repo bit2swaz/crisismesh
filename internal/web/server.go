@@ -47,6 +47,13 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 
+	// Explicitly serve libs and css for clarity, though they are under static
+	libsFS, _ := fs.Sub(staticFiles, "static/libs")
+	mux.Handle("/libs/", http.StripPrefix("/libs/", http.FileServer(http.FS(libsFS))))
+
+	cssFS, _ := fs.Sub(staticFiles, "static/css")
+	mux.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.FS(cssFS))))
+
 	mux.HandleFunc("/", s.handleIndex)
 	mux.HandleFunc("/map", s.handleMap)
 	mux.HandleFunc("/api/messages", s.handleMessages)
