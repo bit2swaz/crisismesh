@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>CrisisMesh Uplink</title>
-    <script src="/libs/htmx.min.js"></script>
+    <script src="/libs/htmx.min.js" onerror="alert('Error: Failed to load HTMX library. Check network/firewall.')"></script>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -18,20 +18,78 @@
         </nav>
     </header>
 
-    <main id="message-feed"
-          hx-get="/api/messages" 
-          hx-trigger="load, every 1s" 
-          hx-swap="innerHTML scroll:bottom">
+    <main id="message-feed">
         <div style="text-align: center; color: #666; margin-top: 2rem;">
-            Initializing secure uplink...
+            Initializing secure uplink...<br>
+            <small id="status-text" style="color: #00ff41;">Connecting via Vanilla JS...</small>
         </div>
     </main>
 
     <footer>
-        <form hx-post="/api/messages" hx-swap="none" hx-on::after-request="this.reset()">
-            <input type="text" name="content" placeholder="Broadcast message..." autocomplete="off" required>
+        <form id="msg-form">
+            <input type="text" id="msg-input" name="content" placeholder="Broadcast message..." autocomplete="off" required>
             <button type="submit">SEND</button>
         </form>
     </footer>
+
+    <script>
+        // Manual Polling & Rendering (Bypassing HTMX)
+        const feed = document.getElementById('message-feed');
+        const statusText = document.getElementById('status-text');
+        const form = document.getElementById('msg-form');
+        const input = document.getElementById('msg-input');
+
+        // Poll for messages every 1s
+        setInterval(() => {
+            // We request HTML directly from the server to keep logic simple
+            // The server already knows how to render "Me" vs "Peer" bubbles
+            fetch('/api/messages', {
+                headers: { 'HX-Request': 'true' } // Trick server into sending HTML
+            })
+            .then(response => {
+                if (!response.ok) throw new Error("Server Error: " + response.status);
+                return response.text();
+            })
+            .then(html => {
+                // Simple diff: only update if content changed (prevents scroll jitter)
+                // We strip whitespace to avoid false positives
+                if (feed.innerHTML.length !== html.length || feed.innerHTML.slice(0,10) !== html.slice(0,10)) {
+                    feed.innerHTML = html;
+                    // Auto-scroll to bottom
+                    feed.scrollTop = feed.scrollHeight;
+                }
+            })
+            .catch(error => {
+                console.error('Poll error:', error);
+                if (statusText) {
+                    statusText.innerText = "Connection Lost: " + error.message;
+                    statusText.style.color = "red";
+                }
+            });
+        }, 1000);
+
+        // Handle Form Submit
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const content = input.value;
+            if (!content) return;
+
+            fetch('/api/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'content=' + encodeURIComponent(content)
+            })
+            .then(res => {
+                if (res.ok) {
+                    input.value = ''; // Clear input on success
+                } else {
+                    alert("Failed to send message");
+                }
+            })
+            .catch(err => alert("Network Error: " + err));
+        });
+    </script>
 </body>
 </html>

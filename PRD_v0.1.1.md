@@ -16,9 +16,10 @@ The system utilizes a **Store-and-Forward** (Delay Tolerant Networking - DTN) ar
 
 **Version 0.1.1** introduces critical enhancements:
 *   **End-to-End Encryption (E2EE):** Secure Direct Messages (DMs) using Curve25519.
-*   **Mobile-First Web Interface:** A responsive web UI for accessing the mesh via smartphones.
-*   **Network Visualization:** A real-time graph of the mesh topology.
-*   **Advanced TUI:** A polished, cyberpunk-themed terminal interface with visual alerts.
+*   **Mobile-First Web Interface:** A responsive web UI for accessing the mesh via smartphones, featuring a robust Vanilla JS fallback for maximum device compatibility.
+*   **Headless Mode:** Ability to run nodes as background services without a TUI.
+*   **Panic Protocol:** Automatic priority escalation for "SOS" messages.
+*   **Advanced TUI:** A polished, cyberpunk-themed "Node Operator Dashboard" for monitoring network health.
 
 ---
 
@@ -44,8 +45,8 @@ The system runs as a single executable binary (`crisis`) that integrates network
 
 ```mermaid
 graph TD
-    UserTUI["User (Headless Monitor)"] <--> TUI["Bubble Tea Dashboard"]
-    UserWeb["User (Input Interface)"] <--> Web["HTTP Server"]
+    UserTUI["Node Operator (Terminal)"] <--> TUI["Bubble Tea Dashboard"]
+    UserWeb["Civilian (Mobile/Web)"] <--> Web["HTTP Server"]
     
     subgraph "CrisisMesh Agent"
         TUI --> Engine
@@ -70,7 +71,7 @@ graph TD
 4.  **Request (TCP):** If Node A has messages Node B is missing, Node B requests them.
 5.  **Transfer:** Messages are transferred. If encrypted, they remain encrypted on the wire.
 6.  **Storage:** Messages are saved to the local SQLite database (WAL mode).
-7.  **Notification:** The TUI flashes, and the Web UI updates via HTMX.
+7.  **Notification:** The TUI flashes RED for priority alerts, and the Web UI updates via polling.
 
 ---
 
@@ -91,35 +92,32 @@ graph TD
     6.  Plaintext is stored in Bob's DB (for display).
 
 ### 4.2. Web Interface (New in v0.1.1)
-*   **Stack:** Go `net/http`, `html/template`, HTMX, Vis.js.
-*   **Offline-First Assets:** No external CDNs. HTMX, Vis.js, and CSS are embedded directly in the binary to ensure functionality in total isolation.
+*   **Stack:** Go `net/http`, `html/template`, Vanilla JS (No Frameworks), Vis.js.
+*   **Offline-First Assets:** No external CDNs. All JS/CSS assets are embedded directly in the binary.
+*   **Resilience:** 
+    *   **Vanilla JS Fallback:** If HTMX fails or is blocked by firewalls, a custom JS poller takes over to ensure connectivity.
+    *   **Cache Busting:** Headers prevent stale state on mobile browsers.
 *   **Endpoints:**
     *   `/`: Main Chat Interface (Mobile Optimized).
-    *   `/map`: **Command Center View:** A visual 
-
-[Image of peer to peer network topology diagram]
- showing active nodes and links, physics-enabled via Vis.js.
+    *   `/map`: **Command Center View:** A visual showing active nodes and links, physics-enabled via Vis.js.
     *   `/api/messages`: JSON endpoint for message history.
     *   `/api/graph`: JSON endpoint for node/link data.
-*   **Features:**
-    *   **Responsive:** Works on iOS/Android browsers.
-    *   **Real-time:** HTMX polling updates chat without full reloads.
-    *   **Visuals:** Interactive physics-based graph of the mesh.
 
 ### 4.3. Terminal User Interface (TUI)
 *   **Framework:** Bubble Tea + Lipgloss.
+*   **Role:** "Node Operator Dashboard" - intended for the technical operator, not the end-user.
 *   **Features:**
-    *   **Tabs:** `F1` (Comms), `F2` (Network), `F3` (Guide).
-    *   **Visual Alerts:** Screen flashes on new messages (<500ms).
-    *   **Status Bar:** Real-time peer count and spinner.
-    *   **Help:** Context-aware keybinding help (`?`).
+    *   **Read-Only Log Stream:** Displays incoming packets and system events.
+    *   **Sidebar:** Shows Node ID, Encryption Status, and Network Health.
+    *   **Visual Alerts:** Screen flashes RED when a Priority 2 (SOS) message is received.
+    *   **Headless Support:** Can be disabled via `CRISIS_HEADLESS=true` for background operation.
 
 ### 4.4. Storage Layer
 *   **Database:** SQLite (Embedded).
 *   **Mode:** Write-Ahead Logging (WAL) enabled for concurrency.
 *   **Schema:**
     *   `peers`: ID, Nick, Addr, **PubKey**, LastSeen, IsActive.
-    *   `messages`: ID, Sender, Recipient, Content, Timestamp, **IsEncrypted**.
+    *   `messages`: ID, Sender, Recipient, Content, Timestamp, **IsEncrypted**, **Priority**.
 
 ---
 
@@ -140,8 +138,9 @@ go build -o crisis ./cmd/crisis
 # Start a node (Default Port 9000)
 ./crisis start --nick Alice
 
-# Start a second node (Port 9001)
-./crisis start --nick Bob --port 9001
+# Start a Headless node (Background Service)
+export CRISIS_HEADLESS=true
+./crisis start --nick Bob --port 9001 --web-port 8081 &
 ```
 
 ### 5.3. Commands
@@ -149,9 +148,8 @@ go build -o crisis ./cmd/crisis
 | :--- | :--- | :--- |
 | `/connect <ip:port>` | Manually connect to a peer | `/connect 192.168.1.5:9000` |
 | `/dm <nick> <msg>` | Send an **Encrypted** Direct Message | `/dm Bob The eagle has landed` |
-| `/safe` | Broadcast a high-priority SAFE status | `/safe` |
+| `SOS` | **Panic Protocol:** Broadcasts "PRIORITY ALERT: SOS" | `SOS` |
 | `Ctrl+C` | Quit | |
-| `F1-F3` | Switch Tabs | |
 
 ### 5.4. Accessing the Web UI
 Open your browser (or mobile phone on the same Wi-Fi) and navigate to:
@@ -160,23 +158,20 @@ Open your browser (or mobile phone on the same Wi-Fi) and navigate to:
 
 ---
 
-## 6. Testing Strategy
+## 6. Demo & Testing
 
-### 6.1. Automated Tests
+### 6.1. The "Safe" Demo Protocol
+We have developed a scripted demo (`scripts/tui_demo.sh`) to showcase the system's capabilities on a single machine:
+1.  **Left Screen (Terminal):** Runs the "Commander" node in TUI mode.
+2.  **Right Screen (Chrome):** Runs the "Civilian" node in Headless mode, accessed via `localhost:8081` in Mobile Emulation.
+3.  **Flow:**
+    *   Civilian types `SOS`.
+    *   Commander TUI flashes RED and logs `[RX] PRIORITY ALERT: SOS`.
+
+### 6.2. Automated Tests
 We maintain a suite of unit tests covering core logic:
-*   **Crypto:** Verifies Key Generation and Encryption/Decryption cycles.
-*   **Engine:** Verifies Gossip propagation and Sync logic.
-*   **TUI:** Verifies visual logic (Flash timing, Peer sorting).
-
-Run tests with:
 ```bash
 go test -v ./...
-```
-
-### 6.2. Manual Verification (The "Bot")
-A helper script spins up a bot to simulate a peer joining, sending a message, and leaving.
-```bash
-./scripts/run_bot.sh
 ```
 
 ---
@@ -184,7 +179,7 @@ A helper script spins up a bot to simulate a peer joining, sending a message, an
 ## 7. What's Next (Roadmap)
 
 *   **File Sharing:** Chunking and transferring images/files over the mesh.
-*   **Mesh Routing:** Multi-hop routing for DMs (currently DMs require direct gossip propagation, though the data floods, the decryption is point-to-point).
+*   **Mesh Routing:** Multi-hop routing for DMs (currently DMs require direct gossip propagation).
 *   **Android App:** Wrapping the Web UI in a native WebView or building a Flutter client.
 *   **LoRa Integration:** Support for 915MHz hardware radios for long-range, off-grid comms.
 

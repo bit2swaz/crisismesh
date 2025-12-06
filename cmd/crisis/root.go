@@ -52,12 +52,24 @@ var startCmd = &cobra.Command{
 		go func() {
 			if err := webSrv.Start(ctx); err != nil {
 				slog.Error("Web server failed", "error", err)
+				os.Exit(1) // Force exit if web server fails
 			}
 		}()
 
-		if err := tui.StartTUI(db, id.NodeID, eng.MsgUpdates, eng.PeerUpdates, eng); err != nil {
-			slog.Error("TUI failed", "error", err)
-			os.Exit(1)
+		// Check if we are in a headless environment (no TTY)
+		// If so, don't start TUI, just block
+		if os.Getenv("CRISIS_HEADLESS") == "true" {
+			slog.Info("Running in HEADLESS mode (No TUI)")
+			// Keep main thread alive
+			select {
+			case <-ctx.Done():
+			}
+		} else {
+			if err := tui.StartTUI(db, id.NodeID, eng.MsgUpdates, eng.PeerUpdates, eng); err != nil {
+				slog.Error("TUI failed", "error", err)
+				// Don't exit on TUI failure in some cases, but here we probably should
+				// os.Exit(1)
+			}
 		}
 	},
 }

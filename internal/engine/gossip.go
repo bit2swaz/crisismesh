@@ -186,7 +186,15 @@ func (g *GossipEngine) PublishText(content string) error {
 	recipientID := "BROADCAST"
 	isEncrypted := false
 	plainText := content
-	cipherText := content
+	priority := 0
+
+	// Auto-detect SOS for demo
+	if strings.ToUpper(strings.TrimSpace(content)) == "SOS" {
+		priority = 2
+		plainText = "PRIORITY ALERT: SOS"
+	}
+
+	cipherText := plainText
 
 	if strings.HasPrefix(content, "/dm ") {
 		parts := strings.SplitN(content, " ", 3)
@@ -231,6 +239,7 @@ func (g *GossipEngine) PublishText(content string) error {
 		HopCount:    0,
 		Status:      "sent",
 		IsEncrypted: false, // Stored as plaintext locally
+		Priority:    priority,
 	}
 	if err := store.SaveMessage(g.db, &msg); err != nil {
 		return fmt.Errorf("failed to save message: %w", err)

@@ -48,10 +48,16 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 
 	// Explicitly serve libs and css for clarity, though they are under static
-	libsFS, _ := fs.Sub(staticFiles, "static/libs")
+	libsFS, err := fs.Sub(staticFiles, "static/libs")
+	if err != nil {
+		slog.Error("Failed to create libsFS", "error", err)
+	}
 	mux.Handle("/libs/", http.StripPrefix("/libs/", http.FileServer(http.FS(libsFS))))
 
-	cssFS, _ := fs.Sub(staticFiles, "static/css")
+	cssFS, err := fs.Sub(staticFiles, "static/css")
+	if err != nil {
+		slog.Error("Failed to create cssFS", "error", err)
+	}
 	mux.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.FS(cssFS))))
 
 	mux.HandleFunc("/", s.handleIndex)
@@ -75,6 +81,7 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
 	tmpl, err := template.ParseFS(staticFiles, "static/index.html")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -84,6 +91,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request) {
+	slog.Info("Handling messages request", "method", r.Method, "hx", r.Header.Get("HX-Request"))
 	if r.Method == http.MethodPost {
 		s.handlePostMessage(w, r)
 		return
@@ -101,6 +109,13 @@ func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request) {
 
 	if r.Header.Get("HX-Request") == "true" {
 		w.Header().Set("Content-Type", "text/html")
+		w.Header().Set("Cache-Control", "no-store") // Prevent caching
+
+		if len(messages) == 0 {
+			fmt.Fprint(w, `<div style="text-align:center; color:#666; padding:1rem;">No messages yet.</div>`)
+			return
+		}
+
 		for _, msg := range messages {
 			ts := time.Unix(msg.Timestamp, 0).Format("15:04")
 			isMe := msg.SenderID == s.engine.GetNodeID()
