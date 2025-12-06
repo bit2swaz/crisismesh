@@ -44,21 +44,21 @@ The system runs as a single executable binary (`crisis`) that integrates network
 
 ```mermaid
 graph TD
-    UserTUI[User (Headless Monitor)] <--> TUI[Bubble Tea Dashboard]
-    UserWeb[User (Input Interface)] <--> Web[HTTP Server]
+    UserTUI["User (Headless Monitor)"] <--> TUI["Bubble Tea Dashboard"]
+    UserWeb["User (Input Interface)"] <--> Web["HTTP Server"]
     
     subgraph "CrisisMesh Agent"
         TUI --> Engine
         Web --> Engine
         
-        Engine[Gossip Engine] <--> Store[(SQLite DB)]
-        Engine <--> Crypto[NaCl Box Crypto]
+        Engine["Gossip Engine"] <--> Store[("SQLite DB")]
+        Engine <--> Crypto["NaCl Box Crypto"]
         
-        Engine <--> Discovery[UDP Discovery]
-        Engine <--> Transport[TCP Transport]
+        Engine <--> Discovery["UDP Discovery"]
+        Engine <--> Transport["TCP Transport"]
     end
 
-    Discovery <--> LAN((Local Network))
+    Discovery <--> LAN(("Local Network"))
     Transport <--> LAN
 ```
 
