@@ -6,9 +6,13 @@ import (
 	"time"
 
 	"github.com/bit2swaz/crisismesh/internal/store"
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"gorm.io/gorm"
 )
 
@@ -25,6 +29,43 @@ type Publisher interface {
 	PublishText(content string) error
 	ManualConnect(addr string) error
 	BroadcastSafe() error
+}
+
+type keyMap struct {
+	Tab  key.Binding
+	Quit key.Binding
+	Help key.Binding
+	Safe key.Binding
+}
+
+func (k keyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Help, k.Quit}
+}
+
+func (k keyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Tab, k.Safe},
+		{k.Help, k.Quit},
+	}
+}
+
+var keys = keyMap{
+	Tab: key.NewBinding(
+		key.WithKeys("f1", "f2", "f3"),
+		key.WithHelp("F1-F3", "switch tabs"),
+	),
+	Quit: key.NewBinding(
+		key.WithKeys("ctrl+c", "esc"),
+		key.WithHelp("ctrl+c", "quit"),
+	),
+	Help: key.NewBinding(
+		key.WithKeys("?"),
+		key.WithHelp("?", "toggle help"),
+	),
+	Safe: key.NewBinding(
+		key.WithKeys("ctrl+s"),
+		key.WithHelp("ctrl+s", "broadcast safe"),
+	),
 }
 
 type model struct {
@@ -44,6 +85,9 @@ type model struct {
 	activeTab int
 	flashTick int
 	startTime time.Time
+	spinner   spinner.Model
+	help      help.Model
+	keys      keyMap
 }
 
 func initialModel(db *gorm.DB, nodeID string, msgSub <-chan store.Message, peerSub <-chan []store.Peer, pub Publisher) model {
@@ -62,6 +106,10 @@ func initialModel(db *gorm.DB, nodeID string, msgSub <-chan store.Message, peerS
 		history = "Welcome to CrisisMesh!\nChat history will appear here.\n"
 	}
 
+	s := spinner.New()
+	s.Spinner = spinner.Pulse
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+
 	return model{
 		db:          db,
 		nodeID:      nodeID,
@@ -73,6 +121,9 @@ func initialModel(db *gorm.DB, nodeID string, msgSub <-chan store.Message, peerS
 		publisher:   pub,
 		activeTab:   TabComms,
 		startTime:   time.Now(),
+		spinner:     s,
+		help:        help.New(),
+		keys:        keys,
 	}
 }
 
@@ -80,6 +131,7 @@ func (m model) Init() tea.Cmd {
 	return tea.Batch(
 		textinput.Blink,
 		tick(),
+		m.spinner.Tick,
 		WaitForUpdates(m.msgSub),
 		WaitForPeerUpdates(m.peerSub),
 	)
@@ -151,10 +203,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.GotoBottom()
 		}
 		return m, tick()
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
 	case tea.KeyMsg:
-		switch msg.Type {
-		case tea.KeyCtrlC, tea.KeyEsc:
+		switch {
+		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
+		case key.Matches(msg, m.keys.Help):
+			m.help.ShowAll = !m.help.ShowAll
+		case key.Matches(msg, m.keys.Tab):
+			// Cycle tabs for simplicity or keep F-keys if preferred, but prompt said "Bind ? key".
+			// The existing code used F1, F2, F3. I'll keep F-keys logic but maybe map them in keyMap.
+			// Actually, I defined Tab as F1-F3 in keyMap.
+			// But key.Matches checks if the key matches the binding.
+			// If I want to distinguish F1, F2, F3, I should probably check msg.String() or have separate bindings.
+			// For now, let's stick to the existing logic for F-keys but add Help toggle.
+		}
+
+		switch msg.Type {
 		case tea.KeyF1:
 			m.activeTab = TabComms
 		case tea.KeyF2:

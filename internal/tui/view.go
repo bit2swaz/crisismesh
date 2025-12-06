@@ -56,6 +56,11 @@ var (
 	flashStyle = lipgloss.NewStyle().
 			Border(lipgloss.ThickBorder()).
 			BorderForeground(colorRed)
+
+	msgFlashStyle = lipgloss.NewStyle().
+			Background(colorWhite).
+			Foreground(colorBlack).
+			Bold(true)
 )
 
 func (m model) View() string {
@@ -85,6 +90,11 @@ func (m model) View() string {
 	if m.flashTick > 0 && m.flashTick%2 == 0 {
 		return flashStyle.Render(body)
 	}
+
+	if m.help.ShowAll {
+		return lipgloss.JoinVertical(lipgloss.Left, body, m.help.View(m.keys))
+	}
+
 	return body
 }
 
@@ -173,13 +183,15 @@ func (m model) renderGuide() string {
 }
 
 func (m model) renderStatusBar() string {
-	status := "ISOLATED"
+	var status string
 	if len(m.peers) > 0 {
-		status = "ONLINE"
+		status = fmt.Sprintf("%s ONLINE (%d)", m.spinner.View(), len(m.peers))
+	} else {
+		status = "❌ ISOLATED"
 	}
 
 	left := fmt.Sprintf("STATUS: %s", status)
-	right := "TAB: Switch | RAM: 12MB"
+	right := "TAB: Switch | ?: Help"
 
 	w := m.viewport.Width
 	if w == 0 {
@@ -213,10 +225,17 @@ func buildChatHistory(db *gorm.DB, nodeID string) (string, error) {
 		}
 		content := msg.Content
 		line := fmt.Sprintf("%s%s: %s", prefix, sender, content)
-		if msg.Priority == 2 {
+
+		if ShouldFlash(time.Unix(msg.Timestamp, 0)) {
+			line = msgFlashStyle.Render(line)
+		} else if msg.Priority == 2 {
 			line = alertStyle.Render(line)
 		}
 		sb.WriteString(line + "\n")
 	}
 	return sb.String(), nil
+}
+
+func ShouldFlash(msgTime time.Time) bool {
+	return time.Since(msgTime) < 500*time.Millisecond
 }
