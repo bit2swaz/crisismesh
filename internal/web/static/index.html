@@ -2,46 +2,35 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CrisisMesh Web Uplink</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CrisisMesh Uplink</title>
     <script src="/libs/htmx.min.js"></script>
     <link rel="stylesheet" href="/css/style.css">
 </head>
-<body class="h-screen flex flex-col overflow-hidden crt">
+<body>
     <div class="scanline"></div>
     
-    <!-- Header -->
-    <header class="border-b border-green-800 p-3 md:p-4 flex justify-between items-center bg-black z-20 shrink-0">
-        <h1 class="text-lg md:text-2xl font-bold tracking-widest truncate mr-2">CRISIS<span class="text-white">MESH</span></h1>
-        <nav class="flex gap-2 md:gap-4 text-[10px] md:text-xs whitespace-nowrap">
-            <span class="text-green-400 bg-green-900/20 px-2 py-1 rounded">[ COMM ]</span>
-            <a href="/map" class="text-green-700 hover:text-green-400 px-2 py-1">[ MAP ]</a>
+    <header>
+        <h1>CRISIS<span style="color: #fff;">MESH</span></h1>
+        <nav>
+            <a href="#" style="background-color: var(--accent-color); color: #000;">[ COMM ]</a>
+            <a href="/map">[ MAP ]</a>
         </nav>
     </header>
 
-    <!-- Message Feed -->
-    <main class="flex-1 overflow-y-auto p-2 md:p-4 space-y-2 scroll-smooth" id="message-feed"
+    <main id="message-feed"
           hx-get="/api/messages" 
-          hx-trigger="load, every 2s" 
-          hx-swap="innerHTML">
-        <!-- Messages will be loaded here -->
-        <div class="text-center text-gray-600 mt-10 text-sm">Initializing secure connection...</div>
+          hx-trigger="load, every 1s" 
+          hx-swap="innerHTML scroll:bottom">
+        <div style="text-align: center; color: #666; margin-top: 2rem;">
+            Initializing secure uplink...
+        </div>
     </main>
 
-    <!-- Input Area -->
-    <footer class="border-t border-green-800 p-2 md:p-4 bg-black z-20 shrink-0 pb-safe">
+    <footer>
         <form hx-post="/api/messages" hx-swap="none" hx-on::after-request="this.reset()">
-            <div class="flex gap-2 items-center">
-                <span class="text-green-600 hidden md:inline">></span>
-                <input type="text" name="content" 
-                       class="flex-1 bg-black border border-green-900 text-green-400 p-3 md:p-2 text-base rounded-none focus:border-green-500 transition-colors appearance-none"
-                       placeholder="Broadcast..." 
-                       autocomplete="off">
-                <button type="submit" 
-                        class="bg-green-900 text-black px-4 py-3 md:py-2 font-bold hover:bg-green-500 transition-colors text-sm md:text-base whitespace-nowrap">
-                    SEND
-                </button>
-            </div>
+            <input type="text" name="content" placeholder="Broadcast message..." autocomplete="off" required>
+            <button type="submit">SEND</button>
         </form>
     </footer>
 </body>

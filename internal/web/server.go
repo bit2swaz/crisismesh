@@ -102,14 +102,36 @@ func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("HX-Request") == "true" {
 		w.Header().Set("Content-Type", "text/html")
 		for _, msg := range messages {
-			colorClass := "text-green-500"
-			if msg.SenderID == s.engine.GetNodeID() {
-				colorClass = "text-cyan-400"
+			ts := time.Unix(msg.Timestamp, 0).Format("15:04")
+			isMe := msg.SenderID == s.engine.GetNodeID()
+
+			bubbleClass := "msg-bubble"
+			if len(msg.Content) >= 9 && msg.Content[:9] == "PRIORITY:" {
+				bubbleClass += " msg-safe"
 			}
 
-			ts := time.Unix(msg.Timestamp, 0).Format("15:04:05")
-			fmt.Fprintf(w, `<div class="mb-1 font-mono"><span class="text-gray-500">[%s]</span> <span class="font-bold %s">%s:</span> <span class="text-white">%s</span></div>`,
-				ts, colorClass, msg.SenderID[:8], msg.Content)
+			if isMe {
+				fmt.Fprintf(w, `
+				<div class="msg-row msg-me">
+					<div class="%s">
+						<div class="msg-text">%s</div>
+						<div class="msg-meta">%s</div>
+					</div>
+				</div>`, bubbleClass, msg.Content, ts)
+			} else {
+				senderDisplay := msg.SenderID
+				if len(senderDisplay) > 8 {
+					senderDisplay = senderDisplay[:8]
+				}
+				fmt.Fprintf(w, `
+				<div class="msg-row msg-peer">
+					<div class="msg-sender">%s</div>
+					<div class="%s">
+						<div class="msg-text">%s</div>
+						<div class="msg-meta">%s</div>
+					</div>
+				</div>`, senderDisplay, bubbleClass, msg.Content, ts)
+			}
 		}
 		return
 	}

@@ -2,14 +2,12 @@ package tui
 
 import (
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/bit2swaz/crisismesh/internal/store"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -32,19 +30,20 @@ type Publisher interface {
 }
 
 type keyMap struct {
-	Tab  key.Binding
-	Quit key.Binding
-	Help key.Binding
-	Safe key.Binding
+	Tab     key.Binding
+	Quit    key.Binding
+	Help    key.Binding
+	Safe    key.Binding
+	Monitor key.Binding
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Help, k.Quit}
+	return []key.Binding{k.Help, k.Quit, k.Monitor}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Tab, k.Safe},
+		{k.Tab, k.Safe, k.Monitor},
 		{k.Help, k.Quit},
 	}
 }
@@ -66,6 +65,10 @@ var keys = keyMap{
 		key.WithKeys("ctrl+s"),
 		key.WithHelp("ctrl+s", "broadcast safe"),
 	),
+	Monitor: key.NewBinding(
+		key.WithKeys("m"),
+		key.WithHelp("m", "toggle monitor"),
+	),
 }
 
 type model struct {
@@ -73,7 +76,6 @@ type model struct {
 	nodeID      string
 	peers       []store.Peer
 	viewport    viewport.Model
-	textInput   textinput.Model
 	chatHistory string
 	ready       bool
 	err         error
@@ -82,28 +84,23 @@ type model struct {
 	publisher   Publisher
 
 	// New fields
-	activeTab int
-	flashTick int
-	startTime time.Time
-	spinner   spinner.Model
-	help      help.Model
-	keys      keyMap
+	activeTab   int
+	flashTick   int
+	startTime   time.Time
+	spinner     spinner.Model
+	help        help.Model
+	keys        keyMap
+	monitorMode bool
 }
 
 func initialModel(db *gorm.DB, nodeID string, msgSub <-chan store.Message, peerSub <-chan []store.Peer, pub Publisher) model {
-	ti := textinput.New()
-	ti.Placeholder = "Type a message..."
-	ti.Focus()
-	ti.CharLimit = 156
-	ti.Width = 20
-
 	var peers []store.Peer
 	db.Find(&peers)
 	sortPeers(peers)
 
-	history, _ := buildChatHistory(db, nodeID)
+	history, _ := buildChatHistory(db, nodeID, false)
 	if history == "" {
-		history = "Welcome to CrisisMesh!\nChat history will appear here.\n"
+		history = "Welcome to CrisisMesh Node Dashboard\nPacket stream initialized...\n"
 	}
 
 	s := spinner.New()
@@ -114,7 +111,6 @@ func initialModel(db *gorm.DB, nodeID string, msgSub <-chan store.Message, peerS
 		db:          db,
 		nodeID:      nodeID,
 		peers:       peers,
-		textInput:   ti,
 		chatHistory: history,
 		msgSub:      msgSub,
 		peerSub:     peerSub,
@@ -124,12 +120,12 @@ func initialModel(db *gorm.DB, nodeID string, msgSub <-chan store.Message, peerS
 		spinner:     s,
 		help:        help.New(),
 		keys:        keys,
+		monitorMode: false,
 	}
 }
 
 func (m model) Init() tea.Cmd {
 	return tea.Batch(
-		textinput.Blink,
 		tick(),
 		m.spinner.Tick,
 		WaitForUpdates(m.msgSub),
@@ -168,7 +164,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	)
 	switch msg := msg.(type) {
 	case store.Message:
-		newHistory, err := buildChatHistory(m.db, m.nodeID)
+		newHistory, err := buildChatHistory(m.db, m.nodeID, m.monitorMode)
 		if err == nil {
 			m.chatHistory = newHistory
 			m.viewport.SetContent(m.chatHistory)
@@ -196,7 +192,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.db.Find(&peers)
 		sortPeers(peers)
 		m.peers = peers
-		newHistory, err := buildChatHistory(m.db, m.nodeID)
+		newHistory, err := buildChatHistory(m.db, m.nodeID, m.monitorMode)
 		if err == nil && newHistory != m.chatHistory {
 			m.chatHistory = newHistory
 			m.viewport.SetContent(m.chatHistory)
@@ -213,6 +209,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case key.Matches(msg, m.keys.Help):
 			m.help.ShowAll = !m.help.ShowAll
+		case key.Matches(msg, m.keys.Monitor):
+			m.monitorMode = !m.monitorMode
+			newHistory, _ := buildChatHistory(m.db, m.nodeID, m.monitorMode)
+			m.chatHistory = newHistory
+			m.viewport.SetContent(m.chatHistory)
 		case key.Matches(msg, m.keys.Tab):
 			// Cycle tabs for simplicity or keep F-keys if preferred, but prompt said "Bind ? key".
 			// The existing code used F1, F2, F3. I'll keep F-keys logic but maybe map them in keyMap.
@@ -232,22 +233,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlS:
 			if err := m.publisher.BroadcastSafe(); err != nil {
 			}
-		case tea.KeyEnter:
-			if m.textInput.Value() != "" {
-				txt := m.textInput.Value()
-				if strings.HasPrefix(txt, "/connect ") {
-					addr := strings.TrimPrefix(txt, "/connect ")
-					if err := m.publisher.ManualConnect(addr); err != nil {
-					}
-				} else if txt == "/safe" {
-					if err := m.publisher.BroadcastSafe(); err != nil {
-					}
-				} else {
-					if err := m.publisher.PublishText(txt); err != nil {
-					}
-				}
-				m.textInput.Reset()
-			}
 		}
 	case tea.WindowSizeMsg:
 		headerHeight := 8 // Increased for HUD
@@ -263,7 +248,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.Height = msg.Height - verticalMarginHeight
 		}
 	}
-	m.textInput, tiCmd = m.textInput.Update(msg)
 	m.viewport, vpCmd = m.viewport.Update(msg)
 	return m, tea.Batch(tiCmd, vpCmd)
 }

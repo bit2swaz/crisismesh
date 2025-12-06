@@ -26,7 +26,7 @@ The system utilizes a **Store-and-Forward** (Delay Tolerant Networking - DTN) ar
 
 In the modern world, we rely heavily on centralized infrastructure (ISPs, Cell Towers, Cloud Servers). When these fail, communication collapses. 
 
-**CrisisMesh** was built to answer the question: *"How do we talk when the lights go out?"*
+**CrisisMesh** was built to answer the question: *"How do we talk when the lights go out **and the governments are watching?**"*
 
 ### Core Philosophy
 1.  **Zero Config:** It should just work. No servers to set up, no IP addresses to configure manually.
@@ -44,8 +44,8 @@ The system runs as a single executable binary (`crisis`) that integrates network
 
 ```mermaid
 graph TD
-    UserTUI[User (Terminal)] <--> TUI[Bubble Tea Interface]
-    UserWeb[User (Mobile/Browser)] <--> Web[HTTP Server]
+    UserTUI[User (Headless Monitor)] <--> TUI[Bubble Tea Dashboard]
+    UserWeb[User (Input Interface)] <--> Web[HTTP Server]
     
     subgraph "CrisisMesh Agent"
         TUI --> Engine
@@ -91,10 +91,14 @@ graph TD
     6.  Plaintext is stored in Bob's DB (for display).
 
 ### 4.2. Web Interface (New in v0.1.1)
-*   **Stack:** Go `net/http`, `html/template`, HTMX, Tailwind CSS (CDN), Vis.js.
+*   **Stack:** Go `net/http`, `html/template`, HTMX, Vis.js.
+*   **Offline-First Assets:** No external CDNs. HTMX, Vis.js, and CSS are embedded directly in the binary to ensure functionality in total isolation.
 *   **Endpoints:**
     *   `/`: Main Chat Interface (Mobile Optimized).
-    *   `/map`: Network Topology Visualization.
+    *   `/map`: **Command Center View:** A visual 
+
+[Image of peer to peer network topology diagram]
+ showing active nodes and links, physics-enabled via Vis.js.
     *   `/api/messages`: JSON endpoint for message history.
     *   `/api/graph`: JSON endpoint for node/link data.
 *   **Features:**
