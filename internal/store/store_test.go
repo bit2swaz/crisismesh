@@ -1,9 +1,82 @@
 package store
+
 import (
+	"fmt"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 )
+
+func TestWALMode(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "wal_test.db")
+	db, err := Init(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to init db: %v", err)
+	}
+
+	var mode string
+	if err := db.Raw("PRAGMA journal_mode;").Scan(&mode).Error; err != nil {
+		t.Fatalf("Failed to query journal mode: %v", err)
+	}
+
+	if strings.ToLower(mode) != "wal" {
+		t.Errorf("Expected journal_mode=wal, got %s", mode)
+	}
+}
+
+func TestConcurrencyStress(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "stress_test.db")
+	db, err := Init(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to init db: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	numGoroutines := 50
+	errChan := make(chan error, numGoroutines)
+
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			msg := &Message{
+				ID:          fmt.Sprintf("msg_%d", id),
+				SenderID:    "stress_tester",
+				RecipientID: "BROADCAST",
+				Content:     fmt.Sprintf("Stress test message %d", id),
+				Priority:    1,
+				Timestamp:   time.Now().Unix(),
+				TTL:         7,
+				HopCount:    0,
+				Status:      "pending",
+			}
+			if err := SaveMessage(db, msg); err != nil {
+				errChan <- fmt.Errorf("goroutine %d failed: %v", id, err)
+			}
+		}(i)
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		t.Errorf("Concurrency error: %v", err)
+	}
+
+	msgs, err := GetMessages(db, 100)
+	if err != nil {
+		t.Fatalf("Failed to get messages: %v", err)
+	}
+
+	if len(msgs) != numGoroutines {
+		t.Errorf("Expected %d messages, got %d", numGoroutines, len(msgs))
+	}
+}
+
 func TestMessagePersistence(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
@@ -50,7 +123,7 @@ func TestMessagePersistence(t *testing.T) {
 		ID:       "peer1",
 		Nick:     "Alice",
 		Addr:     "127.0.0.1:9000",
-		LastSeen: time.Now().Add(-1 * time.Hour),  
+		LastSeen: time.Now().Add(-1 * time.Hour),
 		IsActive: true,
 	}
 	if err := UpsertPeer(db2, peer); err != nil {
