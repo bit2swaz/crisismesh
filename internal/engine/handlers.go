@@ -1,12 +1,17 @@
 package engine
+
 import (
+	"encoding/hex"
 	"encoding/json"
 	"log/slog"
 	"net"
+
 	"github.com/bit2swaz/crisismesh/internal/protocol"
 	"github.com/bit2swaz/crisismesh/internal/store"
 	"github.com/bit2swaz/crisismesh/internal/transport"
+	"golang.org/x/crypto/nacl/box"
 )
+
 func (g *GossipEngine) handlePacket(conn net.Conn, data []byte) {
 	var packet protocol.Packet
 	if err := json.Unmarshal(data, &packet); err != nil {
@@ -41,6 +46,24 @@ func (g *GossipEngine) handleMsg(payload []byte) {
 		return
 	}
 	msg := msgPayload.Message
+
+	if msg.IsEncrypted && msg.RecipientID == g.nodeID {
+		privKey, _ := hex.DecodeString(g.privKey)
+		pubKey, _ := hex.DecodeString(g.pubKey)
+		var pubKeyArr, privKeyArr [32]byte
+		copy(pubKeyArr[:], pubKey)
+		copy(privKeyArr[:], privKey)
+
+		encrypted, _ := hex.DecodeString(msg.Content)
+		decrypted, ok := box.OpenAnonymous(nil, encrypted, &pubKeyArr, &privKeyArr)
+		if ok {
+			msg.Content = string(decrypted)
+			msg.IsEncrypted = false
+		} else {
+			slog.Error("Failed to decrypt message", "id", msg.ID)
+		}
+	}
+
 	if err := store.SaveMessage(g.db, &msg); err != nil {
 		return
 	}

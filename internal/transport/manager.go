@@ -1,12 +1,15 @@
 package transport
+
 import (
 	"fmt"
 	"net"
 	"sync"
 )
+
 type Manager struct {
-	conns sync.Map  
+	conns sync.Map
 }
+
 func NewManager() *Manager {
 	return &Manager{}
 }

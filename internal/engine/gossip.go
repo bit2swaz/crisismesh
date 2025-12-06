@@ -2,10 +2,12 @@ package engine
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"math/rand"
+	mathrand "math/rand"
 	"net"
 	"strings"
 	"time"
@@ -15,6 +17,7 @@ import (
 	"github.com/bit2swaz/crisismesh/internal/protocol"
 	"github.com/bit2swaz/crisismesh/internal/store"
 	"github.com/bit2swaz/crisismesh/internal/transport"
+	"golang.org/x/crypto/nacl/box"
 	"gorm.io/gorm"
 )
 
@@ -24,18 +27,22 @@ type GossipEngine struct {
 	nodeID      string
 	nick        string
 	port        int
+	pubKey      string
+	privKey     string
 	peerChan    chan discovery.PeerInfo
 	MsgUpdates  chan store.Message
 	PeerUpdates chan []store.Peer
 }
 
-func NewGossipEngine(db *gorm.DB, tm *transport.Manager, nodeID, nick string, port int) *GossipEngine {
+func NewGossipEngine(db *gorm.DB, tm *transport.Manager, nodeID, nick string, port int, pubKey, privKey string) *GossipEngine {
 	return &GossipEngine{
 		db:          db,
 		transport:   tm,
 		nodeID:      nodeID,
 		nick:        nick,
 		port:        port,
+		pubKey:      pubKey,
+		privKey:     privKey,
 		peerChan:    make(chan discovery.PeerInfo, 10),
 		MsgUpdates:  make(chan store.Message, 100),
 		PeerUpdates: make(chan []store.Peer, 10),
@@ -48,7 +55,7 @@ func (g *GossipEngine) GetNodeID() string {
 
 func (g *GossipEngine) Start(ctx context.Context) error {
 	go func() {
-		if err := discovery.StartHeartbeat(ctx, g.port, g.nodeID, g.nick); err != nil {
+		if err := discovery.StartHeartbeat(ctx, g.port, g.nodeID, g.nick, g.pubKey); err != nil {
 			slog.Error("Heartbeat failed", "error", err)
 		}
 	}()
@@ -77,7 +84,7 @@ func (g *GossipEngine) startSyncer(ctx context.Context) {
 			if err != nil || len(peers) == 0 {
 				continue
 			}
-			target := peers[rand.Intn(len(peers))]
+			target := peers[mathrand.Intn(len(peers))]
 			msgs, err := store.GetMessages(g.db, 50)
 			if err != nil {
 				slog.Error("Failed to get messages for sync", "error", err)
@@ -127,6 +134,7 @@ func (g *GossipEngine) handlePeerDiscovery(info discovery.PeerInfo) {
 		ID:       info.ID,
 		Nick:     info.Nick,
 		Addr:     info.Addr,
+		PubKey:   info.PubKey,
 		LastSeen: time.Now(),
 		IsActive: true,
 	}
@@ -175,16 +183,54 @@ func (g *GossipEngine) handleConnection(conn net.Conn) {
 	}
 }
 func (g *GossipEngine) PublishText(content string) error {
+	recipientID := "BROADCAST"
+	isEncrypted := false
+	plainText := content
+	cipherText := content
+
+	if strings.HasPrefix(content, "/dm ") {
+		parts := strings.SplitN(content, " ", 3)
+		if len(parts) == 3 {
+			nick := parts[1]
+			text := parts[2]
+
+			var peer store.Peer
+			if err := g.db.Where("nick = ?", nick).First(&peer).Error; err == nil {
+				recipientID = peer.ID
+				plainText = text
+				cipherText = text
+
+				if peer.PubKey != "" {
+					pubKey, _ := hex.DecodeString(peer.PubKey)
+					privKey, _ := hex.DecodeString(g.privKey)
+					var pubKeyArr, privKeyArr [32]byte
+					copy(pubKeyArr[:], pubKey)
+					copy(privKeyArr[:], privKey)
+
+					encrypted, err := box.SealAnonymous(nil, []byte(plainText), &pubKeyArr, rand.Reader)
+					if err == nil {
+						cipherText = hex.EncodeToString(encrypted)
+						isEncrypted = true
+					}
+				}
+			}
+		}
+	}
+
 	ts := time.Now().Unix()
-	msgID := core.GenerateMessageID(g.nodeID, content, ts)
+	msgID := core.GenerateMessageID(g.nodeID, plainText, ts)
+
+	// 1. Save Plaintext Locally (so we can read our own sent messages)
 	msg := store.Message{
-		ID:        msgID,
-		SenderID:  g.nodeID,
-		Content:   content,
-		Timestamp: ts,
-		TTL:       10,
-		HopCount:  0,
-		Status:    "sent",
+		ID:          msgID,
+		SenderID:    g.nodeID,
+		RecipientID: recipientID,
+		Content:     plainText,
+		Timestamp:   ts,
+		TTL:         10,
+		HopCount:    0,
+		Status:      "sent",
+		IsEncrypted: false, // Stored as plaintext locally
 	}
 	if err := store.SaveMessage(g.db, &msg); err != nil {
 		return fmt.Errorf("failed to save message: %w", err)
@@ -193,7 +239,13 @@ func (g *GossipEngine) PublishText(content string) error {
 	case g.MsgUpdates <- msg:
 	default:
 	}
-	msgPayload := protocol.MsgPayload{Message: msg}
+
+	// 2. Send Ciphertext to Network
+	wireMsg := msg
+	wireMsg.Content = cipherText
+	wireMsg.IsEncrypted = isEncrypted
+
+	msgPayload := protocol.MsgPayload{Message: wireMsg}
 	pBytes, err := json.Marshal(msgPayload)
 	if err != nil {
 		return fmt.Errorf("failed to marshal msg payload: %w", err)

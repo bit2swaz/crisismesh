@@ -1,4 +1,5 @@
 package engine
+
 import (
 	"context"
 	"encoding/json"
@@ -6,19 +7,28 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/bit2swaz/crisismesh/internal/core"
 	"github.com/bit2swaz/crisismesh/internal/protocol"
 	"github.com/bit2swaz/crisismesh/internal/store"
 	"github.com/bit2swaz/crisismesh/internal/transport"
 )
+
 func CreateTestNode(t *testing.T, nick string, port int) (*GossipEngine, string, func()) {
 	dbPath := fmt.Sprintf("test_%s_%d.db", nick, time.Now().UnixNano())
 	db, err := store.Init(dbPath)
 	if err != nil {
 		t.Fatalf("Failed to init DB for %s: %v", nick, err)
 	}
+
+	id, err := core.GenerateIdentity()
+	if err != nil {
+		t.Fatalf("Failed to generate identity: %v", err)
+	}
+
 	tm := transport.NewManager()
 	nodeID := fmt.Sprintf("node-%s", nick)
-	eng := NewGossipEngine(db, tm, nodeID, nick, port)
+	eng := NewGossipEngine(db, tm, nodeID, nick, port, id.PubKey, id.PrivKey)
 	ctx, cancel := context.WithCancel(context.Background())
 	if err := tm.Listen(fmt.Sprintf("%d", port), eng.handleConnection); err != nil {
 		t.Fatalf("Failed to listen for %s: %v", nick, err)

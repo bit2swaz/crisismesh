@@ -33,15 +33,15 @@ var startCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		identityPath := fmt.Sprintf("identity_%d.json", cfg.Port)
-		nodeID, err := core.GenerateNodeID(identityPath)
+		id, err := core.LoadOrGenerateIdentity(identityPath)
 		if err != nil {
-			slog.Error("Failed to generate node ID", "error", err)
+			slog.Error("Failed to load identity", "error", err)
 			os.Exit(1)
 		}
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		tm := transport.NewManager()
-		eng := engine.NewGossipEngine(db, tm, nodeID, cfg.Nick, cfg.Port)
+		eng := engine.NewGossipEngine(db, tm, id.NodeID, cfg.Nick, cfg.Port, id.PubKey, id.PrivKey)
 		if err := eng.Start(ctx); err != nil {
 			slog.Error("Failed to start gossip engine", "error", err)
 			os.Exit(1)
@@ -55,7 +55,7 @@ var startCmd = &cobra.Command{
 			}
 		}()
 
-		if err := tui.StartTUI(db, nodeID, eng.MsgUpdates, eng.PeerUpdates, eng); err != nil {
+		if err := tui.StartTUI(db, id.NodeID, eng.MsgUpdates, eng.PeerUpdates, eng); err != nil {
 			slog.Error("TUI failed", "error", err)
 			os.Exit(1)
 		}

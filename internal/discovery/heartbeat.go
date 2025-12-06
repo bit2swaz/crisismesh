@@ -1,4 +1,5 @@
 package discovery
+
 import (
 	"context"
 	"encoding/json"
@@ -6,22 +7,27 @@ import (
 	"log/slog"
 	"net"
 	"time"
+
 	"github.com/bit2swaz/crisismesh/internal/store"
 	"gorm.io/gorm"
 )
+
 type HeartbeatPacket struct {
-	Type string `json:"type"`
-	ID   string `json:"id"`
-	Nick string `json:"nick"`
-	Port int    `json:"port"`
-	TS   int64  `json:"ts"`
+	Type   string `json:"type"`
+	ID     string `json:"id"`
+	Nick   string `json:"nick"`
+	Port   int    `json:"port"`
+	TS     int64  `json:"ts"`
+	PubKey string `json:"pub_key"`
 }
 type PeerInfo struct {
-	ID   string
-	Nick string
-	Addr string
+	ID     string
+	Nick   string
+	Addr   string
+	PubKey string
 }
-func StartHeartbeat(ctx context.Context, servicePort int, nodeID, nick string) error {
+
+func StartHeartbeat(ctx context.Context, servicePort int, nodeID, nick, pubKey string) error {
 	targets := []string{"255.255.255.255", "127.0.0.1"}
 	var conns []*net.UDPConn
 	for _, host := range targets {
@@ -53,11 +59,12 @@ func StartHeartbeat(ctx context.Context, servicePort int, nodeID, nick string) e
 			return nil
 		case t := <-ticker.C:
 			packet := HeartbeatPacket{
-				Type: "beat",
-				ID:   nodeID,
-				Nick: nick,
-				Port: servicePort,
-				TS:   t.Unix(),
+				Type:   "beat",
+				ID:     nodeID,
+				Nick:   nick,
+				Port:   servicePort,
+				TS:     t.Unix(),
+				PubKey: pubKey,
 			}
 			data, err := json.Marshal(packet)
 			if err != nil {
@@ -109,9 +116,10 @@ func StartListener(ctx context.Context, port int, nodeID string, peerChan chan<-
 		slog.Info("Received heartbeat", "from", packet.Nick, "addr", peerAddr)
 		select {
 		case peerChan <- PeerInfo{
-			ID:   packet.ID,
-			Nick: packet.Nick,
-			Addr: peerAddr,
+			ID:     packet.ID,
+			Nick:   packet.Nick,
+			Addr:   peerAddr,
+			PubKey: packet.PubKey,
 		}:
 		case <-ctx.Done():
 			return nil

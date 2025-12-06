@@ -1,11 +1,14 @@
 package store
+
 import (
 	"time"
 )
+
 type Peer struct {
 	ID       string `gorm:"primaryKey"`
 	Nick     string
 	Addr     string
+	PubKey   string
 	LastSeen time.Time
 	IsActive bool
 }
@@ -19,4 +22,5 @@ type Message struct {
 	TTL         int
 	HopCount    int
 	Status      string
+	IsEncrypted bool
 }

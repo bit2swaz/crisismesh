@@ -26,16 +26,16 @@ func main() {
 	}
 
 	identityPath := fmt.Sprintf("identity_%d.json", port)
-	nodeID, err := core.GenerateNodeID(identityPath)
+	id, err := core.LoadOrGenerateIdentity(identityPath)
 	if err != nil {
-		log.Fatalf("Failed to generate node ID: %v", err)
+		log.Fatalf("Failed to load identity: %v", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	tm := transport.NewManager()
-	eng := engine.NewGossipEngine(db, tm, nodeID, nick, port)
+	eng := engine.NewGossipEngine(db, tm, id.NodeID, nick, port, id.PubKey, id.PrivKey)
 
 	// 2. Start Engine
 	fmt.Printf("Bot starting on port %d...\n", port)
