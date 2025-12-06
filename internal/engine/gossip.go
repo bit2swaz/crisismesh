@@ -1,4 +1,5 @@
 package engine
+
 import (
 	"context"
 	"encoding/json"
@@ -8,6 +9,7 @@ import (
 	"net"
 	"strings"
 	"time"
+
 	"github.com/bit2swaz/crisismesh/internal/core"
 	"github.com/bit2swaz/crisismesh/internal/discovery"
 	"github.com/bit2swaz/crisismesh/internal/protocol"
@@ -15,16 +17,18 @@ import (
 	"github.com/bit2swaz/crisismesh/internal/transport"
 	"gorm.io/gorm"
 )
+
 type GossipEngine struct {
-	db        *gorm.DB
-	transport *transport.Manager
-	nodeID    string
-	nick      string
-	port      int
-	peerChan  chan discovery.PeerInfo
+	db          *gorm.DB
+	transport   *transport.Manager
+	nodeID      string
+	nick        string
+	port        int
+	peerChan    chan discovery.PeerInfo
 	MsgUpdates  chan store.Message
 	PeerUpdates chan []store.Peer
 }
+
 func NewGossipEngine(db *gorm.DB, tm *transport.Manager, nodeID, nick string, port int) *GossipEngine {
 	return &GossipEngine{
 		db:          db,
@@ -37,6 +41,11 @@ func NewGossipEngine(db *gorm.DB, tm *transport.Manager, nodeID, nick string, po
 		PeerUpdates: make(chan []store.Peer, 10),
 	}
 }
+
+func (g *GossipEngine) GetNodeID() string {
+	return g.nodeID
+}
+
 func (g *GossipEngine) Start(ctx context.Context) error {
 	go func() {
 		if err := discovery.StartHeartbeat(ctx, g.port, g.nodeID, g.nick); err != nil {
@@ -173,7 +182,7 @@ func (g *GossipEngine) PublishText(content string) error {
 		SenderID:  g.nodeID,
 		Content:   content,
 		Timestamp: ts,
-		TTL:       10,  
+		TTL:       10,
 		HopCount:  0,
 		Status:    "sent",
 	}
@@ -218,7 +227,7 @@ func (g *GossipEngine) BroadcastSafe() error {
 		TTL:       10,
 		HopCount:  0,
 		Status:    "sent",
-		Priority:  2,  
+		Priority:  2,
 	}
 	if err := store.SaveMessage(g.db, &msg); err != nil {
 		return fmt.Errorf("failed to save safe message: %w", err)

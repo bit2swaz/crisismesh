@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CrisisMesh Network Map</title>
+    <script src="/static/htmx.min.js"></script>
+    <script src="/static/vis-network.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #050505;
+            color: #00ff41;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .scanline {
+            width: 100%;
+            height: 100px;
+            z-index: 10;
+            background: linear-gradient(0deg, rgba(0,0,0,0) 0%, rgba(0, 255, 65, 0.04) 50%, rgba(0,0,0,0) 100%);
+            opacity: 0.1;
+            position: absolute;
+            bottom: 100%;
+            animation: scanline 10s linear infinite;
+            pointer-events: none;
+        }
+        @keyframes scanline {
+            0% { bottom: 100%; }
+            100% { bottom: -100%; }
+        }
+        #network {
+            width: 100%;
+            height: 100%;
+            background-color: #000000;
+            border: 1px solid #003300;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+    <div class="scanline"></div>
+    
+    <!-- Header -->
+    <header class="border-b border-green-800 p-3 md:p-4 flex justify-between items-center bg-black z-20 shrink-0">
+        <h1 class="text-lg md:text-2xl font-bold tracking-widest truncate mr-2">CRISIS<span class="text-white">MESH</span></h1>
+        <nav class="flex gap-2 md:gap-4 text-[10px] md:text-xs whitespace-nowrap">
+            <a href="/" class="text-green-700 hover:text-green-400 px-2 py-1">[ COMM ]</a>
+            <span class="text-green-400 bg-green-900/20 px-2 py-1 rounded">[ MAP ]</span>
+        </nav>
+    </header>
+
+    <!-- Map Container -->
+    <main class="flex-1 relative">
+        <div id="network"></div>
+        <div class="absolute top-4 left-4 bg-black bg-opacity-80 p-2 border border-green-900 text-xs">
+            <div>NODES: <span id="node-count" class="text-white">0</span></div>
+            <div>LINKS: <span id="link-count" class="text-white">0</span></div>
+        </div>
+    </main>
+
+    <script>
+        // Initialize Network
+        const container = document.getElementById('network');
+        const options = {
+            nodes: {
+                font: { color: '#00ff41', face: 'Courier New' },
+                borderWidth: 1,
+                color: {
+                    border: '#00ff41',
+                    background: '#000000',
+                    highlight: { border: '#ffffff', background: '#003300' }
+                }
+            },
+            edges: {
+                color: { color: '#333333', highlight: '#00ff41' },
+                width: 1,
+                smooth: { type: 'continuous' }
+            },
+            physics: {
+                stabilization: false,
+                barnesHut: {
+                    gravitationalConstant: -2000,
+                    springConstant: 0.04,
+                    springLength: 95
+                }
+            },
+            interaction: {
+                hover: true,
+                tooltipDelay: 200
+            }
+        };
+
+        let network = null;
+
+        function loadGraph() {
+            fetch('/api/graph')
+                .then(response => response.json())
+                .then(data => {
+                    // Map API 'links' to Vis.js 'edges'
+                    const edges = data.links.map(l => ({ from: l.from, to: l.to }));
+                    const nodes = new vis.DataSet(data.nodes);
+                    const edgesSet = new vis.DataSet(edges);
+
+                    document.getElementById('node-count').innerText = nodes.length;
+                    document.getElementById('link-count').innerText = edges.length;
+
+                    const graphData = { nodes: nodes, edges: edgesSet };
+                    
+                    if (network === null) {
+                        network = new vis.Network(container, graphData, options);
+                    } else {
+                        network.setData(graphData);
+                    }
+                })
+                .catch(err => console.error('Failed to load graph:', err));
+        }
+
+        // Load initially and poll every 5s
+        loadGraph();
+        setInterval(loadGraph, 5000);
+    </script>
+</body>
+</html>

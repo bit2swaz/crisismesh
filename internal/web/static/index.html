@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CrisisMesh Web Uplink</title>
+    <script src="/static/htmx.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #050505;
+            color: #00ff41;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .scanline {
+            width: 100%;
+            height: 100px;
+            z-index: 10;
+            background: linear-gradient(0deg, rgba(0,0,0,0) 0%, rgba(0, 255, 65, 0.04) 50%, rgba(0,0,0,0) 100%);
+            opacity: 0.1;
+            position: absolute;
+            bottom: 100%;
+            animation: scanline 10s linear infinite;
+            pointer-events: none;
+        }
+        @keyframes scanline {
+            0% { bottom: 100%; }
+            100% { bottom: -100%; }
+        }
+        .crt::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+        input:focus {
+            outline: none;
+            box-shadow: 0 0 5px #00ff41;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden crt">
+    <div class="scanline"></div>
+    
+    <!-- Header -->
+    <header class="border-b border-green-800 p-3 md:p-4 flex justify-between items-center bg-black z-20 shrink-0">
+        <h1 class="text-lg md:text-2xl font-bold tracking-widest truncate mr-2">CRISIS<span class="text-white">MESH</span></h1>
+        <nav class="flex gap-2 md:gap-4 text-[10px] md:text-xs whitespace-nowrap">
+            <span class="text-green-400 bg-green-900/20 px-2 py-1 rounded">[ COMM ]</span>
+            <a href="/map" class="text-green-700 hover:text-green-400 px-2 py-1">[ MAP ]</a>
+        </nav>
+    </header>
+
+    <!-- Message Feed -->
+    <main class="flex-1 overflow-y-auto p-2 md:p-4 space-y-2 scroll-smooth" id="message-feed"
+          hx-get="/api/messages" 
+          hx-trigger="load, every 2s" 
+          hx-swap="innerHTML">
+        <!-- Messages will be loaded here -->
+        <div class="text-center text-gray-600 mt-10 text-sm">Initializing secure connection...</div>
+    </main>
+
+    <!-- Input Area -->
+    <footer class="border-t border-green-800 p-2 md:p-4 bg-black z-20 shrink-0 pb-safe">
+        <form hx-post="/api/messages" hx-swap="none" hx-on::after-request="this.reset()">
+            <div class="flex gap-2 items-center">
+                <span class="text-green-600 hidden md:inline">></span>
+                <input type="text" name="content" 
+                       class="flex-1 bg-black border border-green-900 text-green-400 p-3 md:p-2 text-base rounded-none focus:border-green-500 transition-colors appearance-none"
+                       placeholder="Broadcast..." 
+                       autocomplete="off">
+                <button type="submit" 
+                        class="bg-green-900 text-black px-4 py-3 md:py-2 font-bold hover:bg-green-500 transition-colors text-sm md:text-base whitespace-nowrap">
+                    SEND
+                </button>
+            </div>
+        </form>
+    </footer>
+    <style>
+        /* Mobile tweaks */
+        @supports (padding-bottom: env(safe-area-inset-bottom)) {
+            .pb-safe {
+                padding-bottom: env(safe-area-inset-bottom);
+            }
+        }
+        /* Hide scrollbar but keep functionality for cleaner look on mobile */
+        main::-webkit-scrollbar {
+            width: 4px;
+        }
+        main::-webkit-scrollbar-track {
+            background: #000;
+        }
+        main::-webkit-scrollbar-thumb {
+            background: #003300;
+        }
+    </style>
+</body>
+</html>
