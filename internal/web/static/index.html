@@ -8,6 +8,18 @@
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
+    <button id="sos-btn">SOS</button>
+    <div id="identity-modal" style="display: none;">
+        <div class="identity-box">
+            <h2>IDENTITY REQ</h2>
+            <p style="color: #666; margin-bottom: 1.5rem; font-size: 0.9rem;">ESTABLISHING SECURE UPLINK.<br>IDENTIFY YOURSELF.</p>
+            <form id="identity-form">
+                <input type="text" id="identity-input" placeholder="CALLSIGN / NICKNAME" maxlength="12" required autocomplete="off">
+                <button type="submit">INITIALIZE</button>
+            </form>
+        </div>
+    </div>
+
     <div class="scanline"></div>
     
     <header>
@@ -33,6 +45,142 @@
     </footer>
 
     <script>
+        // Identity Management
+        const identityModal = document.getElementById('identity-modal');
+        const identityForm = document.getElementById('identity-form');
+        const identityInput = document.getElementById('identity-input');
+        let currentIdentity = localStorage.getItem('crisis_identity');
+
+        function checkIdentity() {
+            if (!currentIdentity) {
+                identityModal.style.display = 'flex';
+            } else {
+                identityModal.style.display = 'none';
+            }
+        }
+
+        identityForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const val = identityInput.value.trim().toUpperCase();
+            if (val.length > 0) {
+                currentIdentity = val;
+                localStorage.setItem('crisis_identity', currentIdentity);
+                checkIdentity();
+            }
+        });
+
+        // Initial Check
+        checkIdentity();
+
+        // SOS Logic
+        const sosBtn = document.getElementById('sos-btn');
+        
+        sosBtn.addEventListener('click', () => {
+            if (confirm("BROADCAST DISTRESS SIGNAL? This will alert all nearby nodes.")) {
+                sendSOS();
+            }
+        });
+
+        function sendSOS() {
+            if (!currentIdentity) {
+                checkIdentity();
+                return;
+            }
+
+            const sosBtn = document.getElementById('sos-btn');
+            const originalText = sosBtn.innerText;
+            sosBtn.innerText = "ACQUIRING GPS...";
+            sosBtn.disabled = true;
+
+            getLoc((lat, long) => {
+                const payload = {
+                    content: "PRIORITY ALERT: SOS",
+                    priority: 2,
+                    author: currentIdentity,
+                    lat: lat,
+                    long: long
+                };
+
+                console.log("📡 Sending SOS payload:", JSON.stringify(payload));
+
+                fetch('/api/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+                .then(res => {
+                    console.log("Response status:", res.status, res.statusText);
+                    if (!res.ok) {
+                        return res.text().then(text => {
+                            console.error("Server error response:", text);
+                            alert("FAILED TO BROADCAST SOS: " + text);
+                        });
+                    }
+                    console.log("✓ SOS sent successfully");
+                })
+                .catch(err => {
+                    console.error("Network error:", err);
+                    alert("Network Error: " + err);
+                })
+                .finally(() => {
+                    sosBtn.innerText = originalText;
+                    sosBtn.disabled = false;
+                });
+            });
+        }
+
+        function getLoc(callback) {
+            if (!navigator.geolocation) {
+                console.warn("⚠️ Geolocation API not available - Using SIMULATED GPS");
+                const [lat, long] = getSimulatedCoords();
+                callback(lat, long);
+                return;
+            }
+
+            let resolved = false;
+
+            const timeout = setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    console.warn("⏱️ GPS timeout - Using SIMULATED GPS");
+                    const [lat, long] = getSimulatedCoords();
+                    callback(lat, long);
+                }
+            }, 5000);
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    if (!resolved) {
+                        resolved = true;
+                        clearTimeout(timeout);
+                        console.log("✓ Using GPS:", position.coords.latitude, position.coords.longitude);
+                        callback(position.coords.latitude, position.coords.longitude);
+                    }
+                },
+                (error) => {
+                    if (!resolved) {
+                        resolved = true;
+                        clearTimeout(timeout);
+                        console.warn("✗ GPS Error:", error.message, "- Using SIMULATED GPS");
+                        const [lat, long] = getSimulatedCoords();
+                        callback(lat, long);
+                    }
+                },
+                { 
+                    enableHighAccuracy: true, 
+                    timeout: 5000, 
+                    maximumAge: 0 
+                }
+            );
+        }
+
+        function getSimulatedCoords() {
+            const baseLat = 35.689487;
+            const baseLong = 139.691706;
+            const jitter = (Math.random() - 0.5) * 0.001;
+            return [baseLat + jitter, baseLong + jitter];
+        }
+
         // Manual Polling & Rendering (Bypassing HTMX)
         const feed = document.getElementById('message-feed');
         const statusText = document.getElementById('status-text');
@@ -74,12 +222,18 @@
             const content = input.value;
             if (!content) return;
 
+            // Ensure identity is set before sending
+            if (!currentIdentity) {
+                checkIdentity();
+                return;
+            }
+
             fetch('/api/messages', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: 'content=' + encodeURIComponent(content)
+                body: 'content=' + encodeURIComponent(content) + '&author=' + encodeURIComponent(currentIdentity)
             })
             .then(res => {
                 if (res.ok) {

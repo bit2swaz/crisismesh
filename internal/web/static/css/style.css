@@ -221,3 +221,113 @@ main::-webkit-scrollbar-thumb {
         padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
     }
 }
+
+/* Identity Modal */
+#identity-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #000000;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.identity-box {
+    border: 2px solid var(--accent-color);
+    padding: 2rem;
+    background-color: #0a0a0a;
+    text-align: center;
+    max-width: 90%;
+    width: 400px;
+    box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+}
+
+.identity-box form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+}
+
+.identity-box h2 {
+    color: var(--accent-color);
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    font-size: 1.2rem;
+    letter-spacing: 2px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 1rem;
+}
+
+.identity-box input {
+    width: 100%;
+    display: block;
+    background: #000;
+    border: 1px solid #333;
+    color: var(--accent-color);
+    padding: 1rem;
+    font-family: var(--font-mono);
+    font-size: 1.2rem;
+    text-transform: uppercase;
+    outline: none;
+    text-align: center;
+}
+
+.identity-box input:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 10px rgba(0, 255, 65, 0.1);
+}
+
+.identity-box button {
+    width: 100%;
+    display: block;
+    background: var(--accent-color);
+    color: #000;
+    border: none;
+    padding: 1rem;
+    font-family: var(--font-mono);
+    font-weight: bold;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.identity-box button:hover {
+    background: #fff;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+}
+
+/* SOS Button */
+#sos-btn {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 5000;
+    width: 50px;
+    height: 50px;
+    background-color: rgba(50, 0, 0, 0.8);
+    color: #ff0000;
+    border: 2px solid #ff0000;
+    border-radius: 50%;
+    font-weight: bold;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 0 10px rgba(255, 0, 0, 0.4);
+    transition: all 0.2s;
+    padding: 0;
+}
+
+#sos-btn:hover {
+    background-color: #ff0000;
+    color: #000;
+    box-shadow: 0 0 20px rgba(255, 0, 0, 0.8);
+    transform: scale(1.1);
+}

@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/bit2swaz/crisismesh/internal/store"
@@ -21,7 +22,7 @@ var staticFiles embed.FS
 
 type Engine interface {
 	GetNodeID() string
-	PublishText(content string) error
+	PublishText(content string, author string, lat float64, long float64) error
 }
 
 type Server struct {
@@ -157,18 +158,32 @@ func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	var content string
+	var author string
+	var lat, long float64
 
-	if r.Header.Get("Content-Type") == "application/json" {
+	// Check Content-Type more robustly
+	contentType := r.Header.Get("Content-Type")
+	if strings.HasPrefix(strings.ToLower(contentType), "application/json") {
 		var req struct {
-			Content string `json:"content"`
+			Content string  `json:"content"`
+			Author  string  `json:"author"`
+			Lat     float64 `json:"lat"`
+			Long    float64 `json:"long"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			slog.Error("Failed to decode JSON", "error", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		content = req.Content
+		author = req.Author
+		lat = req.Lat
+		long = req.Long
+		slog.Info("Received JSON message", "content", content, "author", author, "lat", lat, "long", long)
 	} else {
 		content = r.FormValue("content")
+		author = r.FormValue("author")
+		slog.Info("Received Form message", "content", content, "author", author)
 	}
 
 	if content == "" {
@@ -176,7 +191,7 @@ func (s *Server) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.engine.PublishText(content); err != nil {
+	if err := s.engine.PublishText(content, author, lat, long); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -209,10 +224,8 @@ func (s *Server) handleMap(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleGraph(w http.ResponseWriter, r *http.Request) {
 	var peers []store.Peer
-	if err := s.db.Find(&peers).Error; err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	// We ignore error here because if DB is empty, we still want to show "Me"
+	s.db.Find(&peers)
 
 	type Node struct {
 		ID    string `json:"id"`
@@ -225,25 +238,28 @@ func (s *Server) handleGraph(w http.ResponseWriter, r *http.Request) {
 		To   string `json:"to"`
 	}
 
+	// Initialize as empty slices to ensure JSON is [] not null
 	nodes := []Node{}
 	links := []Link{}
 
+	// 1. Add Myself
 	myID := s.engine.GetNodeID()
 	nodes = append(nodes, Node{
 		ID:    myID,
-		Label: "ME",
-		Color: "#00FF00",
+		Label: "ME (" + myID[:4] + ")",
+		Color: "#00FF00", // Bright Green
 		Shape: "box",
 	})
 
+	// 2. Add Peers
 	for _, p := range peers {
 		if p.ID == myID {
 			continue
 		}
 
-		color := "#008800"
+		color := "#008800" // Dark Green
 		if !p.IsActive {
-			color = "#555555"
+			color = "#555555" // Grey for offline
 		}
 
 		label := p.Nick
@@ -258,6 +274,7 @@ func (s *Server) handleGraph(w http.ResponseWriter, r *http.Request) {
 			Shape: "dot",
 		})
 
+		// Link everyone to me (Star topology visualization for now)
 		links = append(links, Link{
 			From: myID,
 			To:   p.ID,

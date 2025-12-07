@@ -18,6 +18,9 @@ type Message struct {
 	RecipientID string
 	Content     string
 	Priority    int
+	Author      string  `json:"author"`
+	Lat         float64 `json:"lat"`
+	Long        float64 `json:"long"`
 	Timestamp   int64
 	TTL         int
 	HopCount    int

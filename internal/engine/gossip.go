@@ -32,6 +32,7 @@ type GossipEngine struct {
 	peerChan    chan discovery.PeerInfo
 	MsgUpdates  chan store.Message
 	PeerUpdates chan []store.Peer
+	UplinkChan  chan store.Message
 }
 
 func NewGossipEngine(db *gorm.DB, tm *transport.Manager, nodeID, nick string, port int, pubKey, privKey string) *GossipEngine {
@@ -46,6 +47,7 @@ func NewGossipEngine(db *gorm.DB, tm *transport.Manager, nodeID, nick string, po
 		peerChan:    make(chan discovery.PeerInfo, 10),
 		MsgUpdates:  make(chan store.Message, 100),
 		PeerUpdates: make(chan []store.Peer, 10),
+		// UplinkChan is initialized by the caller if needed
 	}
 }
 
@@ -182,14 +184,21 @@ func (g *GossipEngine) handleConnection(conn net.Conn) {
 		g.handlePacket(conn, payload)
 	}
 }
-func (g *GossipEngine) PublishText(content string) error {
+func (g *GossipEngine) PublishText(content string, author string, lat float64, long float64) error {
 	recipientID := "BROADCAST"
 	isEncrypted := false
 	plainText := content
 	priority := 0
 
+	// Use provided author or fallback to local nick
+	if author == "" {
+		author = g.nick
+	}
+
 	// Auto-detect SOS for demo
-	if strings.ToUpper(strings.TrimSpace(content)) == "SOS" {
+	// Check for exact "SOS" OR "PRIORITY ALERT: SOS" (which comes from the Web UI button)
+	upperContent := strings.ToUpper(strings.TrimSpace(content))
+	if upperContent == "SOS" || upperContent == "PRIORITY ALERT: SOS" {
 		priority = 2
 		plainText = "PRIORITY ALERT: SOS"
 	}
@@ -240,6 +249,9 @@ func (g *GossipEngine) PublishText(content string) error {
 		Status:      "sent",
 		IsEncrypted: false, // Stored as plaintext locally
 		Priority:    priority,
+		Author:      author,
+		Lat:         lat,
+		Long:        long,
 	}
 	if err := store.SaveMessage(g.db, &msg); err != nil {
 		return fmt.Errorf("failed to save message: %w", err)
@@ -247,6 +259,14 @@ func (g *GossipEngine) PublishText(content string) error {
 	select {
 	case g.MsgUpdates <- msg:
 	default:
+	}
+
+	// Send to Uplink if configured
+	if g.UplinkChan != nil {
+		select {
+		case g.UplinkChan <- msg:
+		default:
+		}
 	}
 
 	// 2. Send Ciphertext to Network
@@ -289,6 +309,7 @@ func (g *GossipEngine) BroadcastSafe() error {
 		HopCount:  0,
 		Status:    "sent",
 		Priority:  2,
+		Author:    g.nick,
 	}
 	if err := store.SaveMessage(g.db, &msg); err != nil {
 		return fmt.Errorf("failed to save safe message: %w", err)

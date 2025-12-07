@@ -62,6 +62,9 @@ var (
 			Foreground(colorBlack).
 			Bold(true)
 
+	authorStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("14")) // Cyan
+
 	sidebarStyle = lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder(), false, false, false, true).
 			BorderForeground(colorGreen).
@@ -111,6 +114,25 @@ func (m model) View() string {
 
 	body := lipgloss.JoinHorizontal(lipgloss.Top, streamView, sidebarView)
 
+	if m.showQR {
+		qrView := lipgloss.NewStyle().
+			Border(lipgloss.DoubleBorder()).
+			BorderForeground(colorGreen).
+			Padding(1).
+			Render(m.qrCode + "\n\nSCAN TO JOIN MESH")
+
+		return lipgloss.Place(totalWidth, totalHeight, lipgloss.Center, lipgloss.Center, qrView)
+	}
+
+	if m.lastMsgPriority == 2 {
+		// Pulsing Red Border
+		borderColor := lipgloss.Color("#FF0000")
+		if time.Now().UnixMilli()%1000 < 500 {
+			borderColor = lipgloss.Color("#550000")
+		}
+		return lipgloss.NewStyle().Border(lipgloss.ThickBorder()).BorderForeground(borderColor).Render(body)
+	}
+
 	if m.flashTick > 0 && m.flashTick%2 == 0 {
 		return flashStyle.Render(body)
 	}
@@ -150,11 +172,16 @@ func (m model) renderSidebar(width, height int) string {
 	return sidebarStyle.Width(width).Height(height).Render(content)
 }
 
-func buildChatHistory(db *gorm.DB, nodeID string, monitorMode bool) (string, error) {
+func buildChatHistory(db *gorm.DB, nodeID string, monitorMode bool) (string, int, error) {
 	var sb strings.Builder
 	msgs, err := store.GetMessages(db, 50)
 	if err != nil {
-		return "", err
+		return "", 0, err
+	}
+
+	latestPriority := 0
+	if len(msgs) > 0 {
+		latestPriority = msgs[0].Priority
 	}
 
 	for i := len(msgs) - 1; i >= 0; i-- {
@@ -170,7 +197,22 @@ func buildChatHistory(db *gorm.DB, nodeID string, monitorMode bool) (string, err
 			ts := time.Unix(msg.Timestamp, 0).Format("15:04:05")
 			hops := 1
 			enc := "ON"
-			line = fmt.Sprintf("[%s] [ENC:%s] [HOP:%d] -> %s", ts, enc, hops, msg.Content)
+
+			author := msg.Author
+			if author == "" {
+				author = "Unknown"
+			}
+			authorTag := authorStyle.Render(fmt.Sprintf("[USER: %s]", author))
+
+			line = fmt.Sprintf("[%s] [ENC:%s] [HOP:%d] %s -> %s", ts, enc, hops, authorTag, msg.Content)
+
+			if msg.Lat != 0 && msg.Long != 0 {
+				gpsTag := lipgloss.NewStyle().Foreground(lipgloss.Color("11")).Render(fmt.Sprintf(" [GPS: %.4f, %.4f]", msg.Lat, msg.Long))
+				line += gpsTag
+			} else if msg.Priority == 2 {
+				gpsTag := lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Render(" [GPS: NO SIGNAL]")
+				line += gpsTag
+			}
 		}
 
 		if msg.Priority == 2 {
@@ -178,7 +220,7 @@ func buildChatHistory(db *gorm.DB, nodeID string, monitorMode bool) (string, err
 		}
 		sb.WriteString(line + "\n")
 	}
-	return sb.String(), nil
+	return sb.String(), latestPriority, nil
 }
 
 func ShouldFlash(msgTime time.Time) bool {

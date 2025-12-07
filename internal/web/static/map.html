@@ -67,13 +67,21 @@
             fetch('/api/graph')
                 .then(response => response.json())
                 .then(data => {
-                    // Map API 'links' to Vis.js 'edges'
-                    const edges = data.links.map(l => ({ from: l.from, to: l.to }));
-                    const nodes = new vis.DataSet(data.nodes);
-                    const edgesSet = new vis.DataSet(edges);
+                    console.log("Graph Data:", data); // Debugging
 
-                    document.getElementById('node-count').innerText = nodes.length;
+                    // Ensure arrays exist
+                    const nodeData = data.nodes || [];
+                    const linkData = data.links || [];
+
+                    // Map API 'links' to Vis.js 'edges'
+                    const edges = linkData.map(l => ({ from: l.from, to: l.to }));
+                    
+                    // Update counts
+                    document.getElementById('node-count').innerText = nodeData.length;
                     document.getElementById('link-count').innerText = edges.length;
+
+                    const nodes = new vis.DataSet(nodeData);
+                    const edgesSet = new vis.DataSet(edges);
 
                     const graphData = { nodes: nodes, edges: edgesSet };
                     

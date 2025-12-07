@@ -19,8 +19,6 @@ func (g *GossipEngine) handlePacket(conn net.Conn, data []byte) {
 		return
 	}
 	switch packet.Type {
-	case protocol.TypeSafe:
-		g.handleSafe(packet.Payload)
 	case protocol.TypeMsg:
 		g.handleMsg(packet.Payload)
 	case protocol.TypeSync:
@@ -30,14 +28,6 @@ func (g *GossipEngine) handlePacket(conn net.Conn, data []byte) {
 	default:
 		slog.Warn("Unknown packet type", "type", packet.Type)
 	}
-}
-func (g *GossipEngine) handleSafe(payload []byte) {
-	var safe protocol.SafePayload
-	if err := json.Unmarshal(payload, &safe); err != nil {
-		slog.Error("Failed to unmarshal SAFE payload", "error", err)
-		return
-	}
-	slog.Info("SAFE ALERT RECEIVED", "sender", safe.SenderID, "status", safe.Status)
 }
 func (g *GossipEngine) handleMsg(payload []byte) {
 	var msgPayload protocol.MsgPayload
@@ -71,6 +61,14 @@ func (g *GossipEngine) handleMsg(payload []byte) {
 	select {
 	case g.MsgUpdates <- msg:
 	default:
+	}
+
+	// Send to Uplink if configured
+	if g.UplinkChan != nil {
+		select {
+		case g.UplinkChan <- msg:
+		default:
+		}
 	}
 }
 func (g *GossipEngine) handleSync(conn net.Conn, payload []byte) {

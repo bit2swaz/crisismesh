@@ -24,7 +24,7 @@ const (
 )
 
 type Publisher interface {
-	PublishText(content string) error
+	PublishText(content string, author string, lat float64, long float64) error
 	ManualConnect(addr string) error
 	BroadcastSafe() error
 }
@@ -35,15 +35,16 @@ type keyMap struct {
 	Help    key.Binding
 	Safe    key.Binding
 	Monitor key.Binding
+	QR      key.Binding
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Help, k.Quit, k.Monitor}
+	return []key.Binding{k.Help, k.Quit, k.Monitor, k.QR}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Tab, k.Safe, k.Monitor},
+		{k.Tab, k.Safe, k.Monitor, k.QR},
 		{k.Help, k.Quit},
 	}
 }
@@ -69,6 +70,10 @@ var keys = keyMap{
 		key.WithKeys("m"),
 		key.WithHelp("m", "toggle monitor"),
 	),
+	QR: key.NewBinding(
+		key.WithKeys("q"),
+		key.WithHelp("q", "toggle QR"),
+	),
 }
 
 type model struct {
@@ -84,21 +89,24 @@ type model struct {
 	publisher   Publisher
 
 	// New fields
-	activeTab   int
-	flashTick   int
-	startTime   time.Time
-	spinner     spinner.Model
-	help        help.Model
-	keys        keyMap
-	monitorMode bool
+	activeTab       int
+	flashTick       int
+	startTime       time.Time
+	spinner         spinner.Model
+	help            help.Model
+	keys            keyMap
+	monitorMode     bool
+	qrCode          string
+	showQR          bool
+	lastMsgPriority int
 }
 
-func initialModel(db *gorm.DB, nodeID string, msgSub <-chan store.Message, peerSub <-chan []store.Peer, pub Publisher) model {
+func initialModel(db *gorm.DB, nodeID string, msgSub <-chan store.Message, peerSub <-chan []store.Peer, pub Publisher, qrCode string) model {
 	var peers []store.Peer
 	db.Find(&peers)
 	sortPeers(peers)
 
-	history, _ := buildChatHistory(db, nodeID, false)
+	history, prio, _ := buildChatHistory(db, nodeID, false)
 	if history == "" {
 		history = "Welcome to CrisisMesh Node Dashboard\nPacket stream initialized...\n"
 	}
@@ -108,19 +116,22 @@ func initialModel(db *gorm.DB, nodeID string, msgSub <-chan store.Message, peerS
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 
 	return model{
-		db:          db,
-		nodeID:      nodeID,
-		peers:       peers,
-		chatHistory: history,
-		msgSub:      msgSub,
-		peerSub:     peerSub,
-		publisher:   pub,
-		activeTab:   TabComms,
-		startTime:   time.Now(),
-		spinner:     s,
-		help:        help.New(),
-		keys:        keys,
-		monitorMode: false,
+		db:              db,
+		nodeID:          nodeID,
+		peers:           peers,
+		chatHistory:     history,
+		msgSub:          msgSub,
+		peerSub:         peerSub,
+		publisher:       pub,
+		activeTab:       TabComms,
+		startTime:       time.Now(),
+		spinner:         s,
+		help:            help.New(),
+		keys:            keys,
+		monitorMode:     false,
+		qrCode:          qrCode,
+		showQR:          false,
+		lastMsgPriority: prio,
 	}
 }
 
@@ -164,9 +175,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	)
 	switch msg := msg.(type) {
 	case store.Message:
-		newHistory, err := buildChatHistory(m.db, m.nodeID, m.monitorMode)
+		newHistory, prio, err := buildChatHistory(m.db, m.nodeID, m.monitorMode)
 		if err == nil {
 			m.chatHistory = newHistory
+			m.lastMsgPriority = prio
 			m.viewport.SetContent(m.chatHistory)
 			m.viewport.GotoBottom()
 		}
@@ -192,9 +204,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.db.Find(&peers)
 		sortPeers(peers)
 		m.peers = peers
-		newHistory, err := buildChatHistory(m.db, m.nodeID, m.monitorMode)
+		newHistory, prio, err := buildChatHistory(m.db, m.nodeID, m.monitorMode)
 		if err == nil && newHistory != m.chatHistory {
 			m.chatHistory = newHistory
+			m.lastMsgPriority = prio
 			m.viewport.SetContent(m.chatHistory)
 			m.viewport.GotoBottom()
 		}
@@ -211,9 +224,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.help.ShowAll = !m.help.ShowAll
 		case key.Matches(msg, m.keys.Monitor):
 			m.monitorMode = !m.monitorMode
-			newHistory, _ := buildChatHistory(m.db, m.nodeID, m.monitorMode)
+			newHistory, prio, _ := buildChatHistory(m.db, m.nodeID, m.monitorMode)
 			m.chatHistory = newHistory
+			m.lastMsgPriority = prio
 			m.viewport.SetContent(m.chatHistory)
+		case key.Matches(msg, m.keys.QR):
+			m.showQR = !m.showQR
 		case key.Matches(msg, m.keys.Tab):
 			// Cycle tabs for simplicity or keep F-keys if preferred, but prompt said "Bind ? key".
 			// The existing code used F1, F2, F3. I'll keep F-keys logic but maybe map them in keyMap.
@@ -264,8 +280,8 @@ func sortPeers(peers []store.Peer) {
 	})
 }
 
-func StartTUI(db *gorm.DB, nodeID string, msgSub <-chan store.Message, peerSub <-chan []store.Peer, pub Publisher) error {
-	p := tea.NewProgram(initialModel(db, nodeID, msgSub, peerSub, pub), tea.WithAltScreen())
+func StartTUI(db *gorm.DB, nodeID string, msgSub <-chan store.Message, peerSub <-chan []store.Peer, pub Publisher, qrCode string) error {
+	p := tea.NewProgram(initialModel(db, nodeID, msgSub, peerSub, pub, qrCode), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		return err
 	}
