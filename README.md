@@ -1,5 +1,7 @@
 # CrisisMesh
 
+[Read the Technical Whitepaper](https://github.com/bit2swaz/crisismesh/wiki/Main-Product-Wiki)
+
 **Decentralized Offline Emergency Communication Network**
 
 ![Architecture](Untitled-2025-11-20-2204.png)

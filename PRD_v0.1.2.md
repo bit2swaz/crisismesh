@@ -384,20 +384,20 @@ sequenceDiagram
 ```mermaid
 graph TB
     subgraph "Periodic Sync (Every 5s)"
-        A[Node A] -->|1. SYNC packet<br/>MessageIDs: [abc, def, ghi]| B[Node B]
-        B -->|2. Compare local DB| B
-        B -->|3. Find missing: [jkl, mno]| B
-        B -->|4. REQ packet<br/>MessageIDs: [jkl, mno]| A
-        A -->|5. MSG packet: jkl| B
-        A -->|6. MSG packet: mno| B
-        B -->|7. Save to local DB| B
+        A[Node A] -- "1. SYNC packet<br/>MessageIDs: [abc, def, ghi]" --> B[Node B]
+        B -- "2. Compare local DB" --> B
+        B -- "3. Find missing: [jkl, mno]" --> B
+        B -- "4. REQ packet<br/>MessageIDs: [jkl, mno]" --> A
+        A -- "5. MSG packet: jkl" --> B
+        A -- "6. MSG packet: mno" --> B
+        B -- "7. Save to local DB" --> B
     end
     
     subgraph "New Message Broadcast"
-        C[Node C] -->|8. User sends message| C
-        C -->|9. Save to DB| C
-        C -->|10. MSG broadcast to all TCP peers| D[All Connected Nodes]
-        D -->|11. Save + propagate| E[Mesh Network]
+        C[Node C] -- "8. User sends message" --> C
+        C -- "9. Save to DB" --> C
+        C -- "10. MSG broadcast to all TCP peers" --> D[All Connected Nodes]
+        D -- "11. Save + propagate" --> E[Mesh Network]
     end
 ```
 
